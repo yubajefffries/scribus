@@ -1830,9 +1830,8 @@ void RawPainter::insertText(const librevenge::RVNGString &text)
 			actText.replace(QChar(12), SpecialChars::FRAMEBREAK);
 			actText.replace(QChar(30), SpecialChars::NBHYPHEN);
 			actText.replace(QChar(160), SpecialChars::NBSPACE);
-			QTextDocument texDoc;
-			texDoc.setHtml(actText);
-			actText = texDoc.toPlainText();
+			// librevenge passes plain text; parsing it as HTML dropped leading and repeated
+			// spaces and anything that looked like markup
 			m_currTextItem->itemText.insertChars(posC, actText);
 			m_currTextItem->itemText.applyStyle(posC, m_textStyle);
 			m_currTextItem->itemText.applyCharStyle(posC, actText.length(), m_textCharStyle);
