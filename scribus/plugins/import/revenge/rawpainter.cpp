@@ -1620,6 +1620,7 @@ void RawPainter::openParagraph(const librevenge::RVNGPropertyList &propList)
 {
 	if (!m_doProcessing)
 		return;
+	m_paraStart = (m_currTextItem != nullptr) ? m_currTextItem->itemText.length() : -1;
 	QString pStyle = CommonStrings::DefaultParagraphStyle;
 	ParagraphStyle newStyle;
 	newStyle.setParent(pStyle);
@@ -1682,14 +1683,16 @@ void RawPainter::closeParagraph()
 	if (m_currTextItem == nullptr)
 		return;
 	int posT = m_currTextItem->itemText.length();
-	if (posT > 0)
+	// An empty paragraph is a blank line and needs its own separator, sized by its font
+	bool emptyParagraph = (posT == m_paraStart);
+	if (emptyParagraph || ((posT > 0) && (m_currTextItem->itemText.text(posT - 1) != SpecialChars::PARSEP)))
 	{
-		if (m_currTextItem->itemText.text(posT - 1) != SpecialChars::PARSEP)
-		{
-			m_currTextItem->itemText.insertChars(posT, SpecialChars::PARSEP);
-			m_currTextItem->itemText.applyStyle(posT, m_textStyle);
-		}
+		m_currTextItem->itemText.insertChars(posT, SpecialChars::PARSEP);
+		m_currTextItem->itemText.applyStyle(posT, m_textStyle);
+		if (emptyParagraph)
+			m_currTextItem->itemText.applyCharStyle(posT, 1, m_textCharStyle);
 	}
+	m_paraStart = -1;
 }
 
 void RawPainter::defineCharacterStyle(const librevenge::RVNGPropertyList &propList)
@@ -1851,9 +1854,8 @@ void RawPainter::insertText(const librevenge::RVNGString &text)
 			actText.replace(QChar(12), SpecialChars::FRAMEBREAK);
 			actText.replace(QChar(30), SpecialChars::NBHYPHEN);
 			actText.replace(QChar(160), SpecialChars::NBSPACE);
-			QTextDocument texDoc;
-			texDoc.setHtml(actText);
-			actText = texDoc.toPlainText();
+			// librevenge passes plain text; parsing it as HTML dropped leading and repeated
+			// spaces and anything that looked like markup
 			m_currTextItem->itemText.insertChars(posC, actText);
 			m_currTextItem->itemText.applyStyle(posC, m_textStyle);
 			m_currTextItem->itemText.applyCharStyle(posC, actText.length(), m_textCharStyle);

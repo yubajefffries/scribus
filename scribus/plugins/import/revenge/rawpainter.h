@@ -169,6 +169,8 @@ private:
 	ParagraphStyle m_listStyle;
 	QStack<ParagraphStyle> m_listStack;
 	int m_listParaStart { -1 };
+	// text length when the current paragraph was opened, to spot empty paragraphs
+	int m_paraStart { -1 };
 };
 
 class RawPainterPres : public librevenge::RVNGRawTextGenerator

@@ -51,7 +51,10 @@ statically into the pub importer). `patch-libs-x64.bat` applies them in number o
   paragraphs in librevenge list levels with `text:bullet-char` or numbering props. The pub
   importer turns these into native Scribus bullets and numbering.
 
-All three are upstream candidates for libmspub.
+- `04-signed-indents`: paragraph left/right indents are signed; a negative indent was read
+  as about 4700 inches.
+
+All four are upstream candidates for libmspub.
 
 ## .pub import test
 
