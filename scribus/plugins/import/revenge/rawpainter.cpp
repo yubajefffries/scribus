@@ -1650,8 +1650,8 @@ void RawPainter::openSpan(const librevenge::RVNGPropertyList &propList)
 				styleEffects |= ScStyle_Superscript;
 			else if (pos[0] == "sub")
 				styleEffects |= ScStyle_Subscript;
-			else
-				m_textCharStyle.setBaselineOffset(m_textCharStyle.fontSize() * fromPercentage(pos[0]) * 10);
+			else // percentage of the font size; Scribus stores 1/1000 of the font size
+				m_textCharStyle.setBaselineOffset(qRound(fromPercentage(pos[0]) * 1000.0));
 		}
 		if (pos.size() > 1)
 			// TODO: Scribus makes font size for sub-/superscript smaller, so this doesn't match well.
