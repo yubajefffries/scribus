@@ -20,6 +20,7 @@ for which a new license (GPL+exception) is in place.
 #include "commonstrings.h"
 #include "fileloader.h"
 #include "loadsaveplugin.h"
+#include "numeration.h"
 #include "prefsmanager.h"
 #include "scclocale.h"
 #include "sccolorengine.h"
@@ -1505,42 +1506,107 @@ void RawPainter::openOrderedListLevel(const librevenge::RVNGPropertyList &propLi
 {
 	if (!m_doProcessing)
 		return;
-	qDebug() << "openOrderedListLevel";
+	m_listStack.push(m_listStyle);
+	ParagraphStyle listStyle;
+	listStyle.setHasBullet(false);
+	listStyle.setHasNum(true);
+	listStyle.setNumName("<local block>");
+	int numFormat = Type_1_2_3;
+	if (propList["style:num-format"])
+	{
+		QString format(propList["style:num-format"]->getStr().cstr());
+		if (format == "i")
+			numFormat = Type_i_ii_iii;
+		else if (format == "I")
+			numFormat = Type_I_II_III;
+		else if (format == "a")
+			numFormat = Type_a_b_c;
+		else if (format == "A")
+			numFormat = Type_A_B_C;
+	}
+	listStyle.setNumFormat(numFormat);
+	listStyle.setNumPrefix(propList["style:num-prefix"] ? QString::fromUtf8(propList["style:num-prefix"]->getStr().cstr()) : QString());
+	listStyle.setNumSuffix(propList["style:num-suffix"] ? QString::fromUtf8(propList["style:num-suffix"]->getStr().cstr()) : QString());
+	listStyle.setNumStart(propList["text:start-value"] ? propList["text:start-value"]->getInt() : 1);
+	listStyle.setNumLevel(propList["librevenge:level"] ? qMax(0, propList["librevenge:level"]->getInt() - 1) : 0);
+	m_listStyle = listStyle;
 }
 
 void RawPainter::closeOrderedListLevel()
 {
 	if (!m_doProcessing)
 		return;
-	qDebug() << "closeOrderedListLevel";
+	m_listStyle = m_listStack.isEmpty() ? ParagraphStyle() : m_listStack.pop();
 }
 
 void RawPainter::openUnorderedListLevel(const librevenge::RVNGPropertyList &propList)
 {
 	if (!m_doProcessing)
 		return;
-	qDebug() << "openUnorderedListLevel";
+	m_listStack.push(m_listStyle);
+	ParagraphStyle listStyle;
+	listStyle.setHasNum(false);
+	listStyle.setHasBullet(true);
+	QString bullet;
+	if (propList["text:bullet-char"])
+		bullet = QString::fromUtf8(propList["text:bullet-char"]->getStr().cstr());
+	listStyle.setBulletStr(bullet.isEmpty() ? QString(QChar(0x2022)) : bullet);
+	m_listStyle = listStyle;
 }
 
 void RawPainter::closeUnorderedListLevel()
 {
 	if (!m_doProcessing)
 		return;
-	qDebug() << "closeUnorderedListLevel";
+	m_listStyle = m_listStack.isEmpty() ? ParagraphStyle() : m_listStack.pop();
 }
 
 void RawPainter::openListElement(const librevenge::RVNGPropertyList &propList)
 {
 	if (!m_doProcessing)
 		return;
-	qDebug() << "openListElement";
+	openParagraph(propList);
+	if (m_listStyle.hasBullet())
+	{
+		m_textStyle.setHasBullet(true);
+		m_textStyle.setBulletStr(m_listStyle.bulletStr());
+	}
+	else if (m_listStyle.hasNum())
+	{
+		m_textStyle.setHasNum(true);
+		m_textStyle.setNumName(m_listStyle.numName());
+		m_textStyle.setNumFormat(m_listStyle.numFormat());
+		m_textStyle.setNumPrefix(m_listStyle.numPrefix());
+		m_textStyle.setNumSuffix(m_listStyle.numSuffix());
+		m_textStyle.setNumStart(m_listStyle.numStart());
+		m_textStyle.setNumLevel(m_listStyle.numLevel());
+	}
+	m_listParaStart = (m_currTextItem != nullptr) ? m_currTextItem->itemText.length() : -1;
 }
 
 void RawPainter::closeListElement()
 {
 	if (!m_doProcessing)
 		return;
-	qDebug() << "closeListElement";
+	if ((m_currTextItem != nullptr) && (m_textStyle.hasBullet() || m_textStyle.hasNum()))
+	{
+		// The list text starts at the paragraph's left margin and the marker hangs in the
+		// (negative) first line indent, so the gap after the marker fills the rest of it.
+		const StoryText& story = m_currTextItem->itemText;
+		const CharStyle& markerStyle = ((m_listParaStart >= 0) && (m_listParaStart < story.length())) ? story.charStyle(m_listParaStart) : m_textCharStyle;
+		const ScFace& face = markerStyle.font();
+		double fontSize = markerStyle.fontSize() / 10.0;
+		QString marker = m_textStyle.hasBullet() ? m_textStyle.bulletStr() : (m_textStyle.numPrefix() + "1" + m_textStyle.numSuffix());
+		double markerWidth = 0.0;
+		for (const QChar& c : marker)
+			markerWidth += face.glyphWidth(face.char2CMap(c.unicode()), fontSize);
+		double offset = -m_textStyle.firstIndent() - markerWidth;
+		m_textStyle.setParEffectOffset((offset > 0.0) ? offset : fontSize * 0.5);
+		if ((m_listParaStart >= 0) && (m_listParaStart < story.length()))
+			m_currTextItem->itemText.applyStyle(m_listParaStart, m_textStyle);
+	}
+	closeParagraph();
+	m_listParaStart = -1;
 }
 
 void RawPainter::defineParagraphStyle(const librevenge::RVNGPropertyList &propList)

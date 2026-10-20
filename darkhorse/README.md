@@ -46,8 +46,12 @@ statically into the pub importer). `patch-libs-x64.bat` applies them in number o
 - `02-inline-object-text`: objects anchored inline in text live on an internal dummy page
   and were never drawn, so their text was lost. Splice each inline story's paragraphs in at
   its U+FFFC marker (markers and inline stories paired in document order).
+- `03-lists`: list paragraphs were read but never emitted (and the bullet character was
+  read from the wrong block, so every list looked numbered). Fix the parse and wrap list
+  paragraphs in librevenge list levels with `text:bullet-char` or numbering props. The pub
+  importer turns these into native Scribus bullets and numbering.
 
-Both are upstream candidates for libmspub.
+All three are upstream candidates for libmspub.
 
 ## .pub import test
 

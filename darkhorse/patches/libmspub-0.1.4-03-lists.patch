@@ -1,0 +1,249 @@
+diff --git a/src/lib/MSPUBCollector.cpp b/src/lib/MSPUBCollector.cpp
+index 4d99ade..a647b56 100644
+--- a/src/lib/MSPUBCollector.cpp
++++ b/src/lib/MSPUBCollector.cpp
+@@ -347,6 +347,178 @@ void fillLocale(librevenge::RVNGPropertyList &props, const unsigned lcid)
+     props.insert("fo:script", component);
+ }
+ 
++void appendUTF8(librevenge::RVNGString &str, unsigned ucs4)
++{
++  char buf[5] = { 0, 0, 0, 0, 0 };
++  if (ucs4 < 0x80)
++    buf[0] = char(ucs4);
++  else if (ucs4 < 0x800)
++  {
++    buf[0] = char(0xC0 | (ucs4 >> 6));
++    buf[1] = char(0x80 | (ucs4 & 0x3F));
++  }
++  else if (ucs4 < 0x10000)
++  {
++    buf[0] = char(0xE0 | (ucs4 >> 12));
++    buf[1] = char(0x80 | ((ucs4 >> 6) & 0x3F));
++    buf[2] = char(0x80 | (ucs4 & 0x3F));
++  }
++  else
++  {
++    buf[0] = char(0xF0 | (ucs4 >> 18));
++    buf[1] = char(0x80 | ((ucs4 >> 12) & 0x3F));
++    buf[2] = char(0x80 | ((ucs4 >> 6) & 0x3F));
++    buf[3] = char(0x80 | (ucs4 & 0x3F));
++  }
++  str.append(buf);
++}
++
++librevenge::RVNGPropertyList getListLevelProps(const ListInfo &info)
++{
++  librevenge::RVNGPropertyList props;
++  props.insert("librevenge:level", 1);
++  if (info.m_listType == UNORDERED)
++  {
++    librevenge::RVNGString bullet;
++    unsigned c = info.m_bulletChar.get_value_or(0x2022);
++    // Symbol font code points, either raw or in the private use area
++    if ((c & 0xFF00) == 0xF000)
++      c &= 0xFF;
++    if (c == 0 || c == 0xB7)
++      c = 0x2022;
++    appendUTF8(bullet, c);
++    props.insert("text:bullet-char", bullet);
++    return props;
++  }
++  const char *format = "1";
++  switch (info.m_numberingType.get_value_or(STANDARD_WESTERN))
++  {
++  case UPPERCASE_ROMAN:
++    format = "I";
++    break;
++  case LOWERCASE_ROMAN:
++    format = "i";
++    break;
++  case UPPERCASE_LETTERS:
++    format = "A";
++    break;
++  case LOWERCASE_LETTERS:
++    format = "a";
++    break;
++  default:
++    break;
++  }
++  props.insert("style:num-format", format);
++  const char *prefix = "";
++  const char *suffix = "";
++  switch (info.m_numberingDelimiter.get_value_or(NO_DELIMITER))
++  {
++  case PARENTHESIS:
++    suffix = ")";
++    break;
++  case PARENTHESES_SURROUND:
++    prefix = "(";
++    suffix = ")";
++    break;
++  case PERIOD:
++    suffix = ".";
++    break;
++  case SQUARE_BRACKET:
++    suffix = "]";
++    break;
++  case COLON:
++    suffix = ":";
++    break;
++  case SQUARE_BRACKET_SURROUND:
++    prefix = "[";
++    suffix = "]";
++    break;
++  case HYPHEN_SURROUND:
++    prefix = "- ";
++    suffix = " -";
++    break;
++  case IDEOGRAPHIC_HALF_COMMA:
++    suffix = "\xE3\x80\x81";
++    break;
++  default:
++    break;
++  }
++  if (*prefix)
++    props.insert("style:num-prefix", prefix);
++  if (*suffix)
++    props.insert("style:num-suffix", suffix);
++  if (info.m_numberIfRestarted)
++    props.insert("text:start-value", int(info.m_numberIfRestarted.get()));
++  return props;
++}
++
++bool sameList(const ListInfo &a, const ListInfo &b)
++{
++  return a.m_listType == b.m_listType && a.m_bulletChar == b.m_bulletChar
++         && a.m_numberingType == b.m_numberingType && a.m_numberingDelimiter == b.m_numberingDelimiter;
++}
++
++// Emits paragraphs, wrapping runs of list paragraphs in list levels.
++class ParagraphWriter
++{
++public:
++  explicit ParagraphWriter(librevenge::RVNGDrawingInterface *painter)
++    : m_painter(painter), m_openList()
++  {
++  }
++
++  ~ParagraphWriter()
++  {
++    closeList();
++  }
++
++  void openParagraph(const ParagraphStyle &style, const librevenge::RVNGPropertyList &props)
++  {
++    if (!style.m_listInfo)
++    {
++      closeList();
++      m_painter->openParagraph(props);
++      return;
++    }
++    const ListInfo &info = style.m_listInfo.get();
++    // a restart number starts a new list
++    if (m_openList && (!sameList(m_openList.get(), info) || info.m_numberIfRestarted))
++      closeList();
++    if (!m_openList)
++    {
++      if (info.m_listType == UNORDERED)
++        m_painter->openUnorderedListLevel(getListLevelProps(info));
++      else
++        m_painter->openOrderedListLevel(getListLevelProps(info));
++      m_openList = info;
++    }
++    m_painter->openListElement(props);
++  }
++
++  void closeParagraph(const ParagraphStyle &style)
++  {
++    if (style.m_listInfo)
++      m_painter->closeListElement();
++    else
++      m_painter->closeParagraph();
++  }
++
++  void closeList()
++  {
++    if (!m_openList)
++      return;
++    if (m_openList.get().m_listType == UNORDERED)
++      m_painter->closeUnorderedListLevel();
++    else
++      m_painter->closeOrderedListLevel();
++    m_openList = boost::none;
++  }
++
++private:
++  librevenge::RVNGDrawingInterface *m_painter;
++  boost::optional<ListInfo> m_openList;
++};
++
+ } // anonymous namespace
+ 
+ void MSPUBCollector::collectMetaData(const librevenge::RVNGPropertyList &metaData)
+@@ -1177,10 +1349,11 @@ std::function<void(void)> MSPUBCollector::paintShape(const ShapeInfo &info, cons
+             if (tableLayout[row][col].m_cell < paraToCellMap.size())
+             {
+               const std::pair<unsigned, unsigned> &cellParas = paraToCellMap[tableLayout[row][col].m_cell];
++              ParagraphWriter writer(m_painter);
+               for (unsigned para = cellParas.first; para <= cellParas.second; ++para)
+               {
+                 librevenge::RVNGPropertyList paraProps = getParaStyleProps(text[para].style, text[para].style.m_defaultCharStyleIndex);
+-                m_painter->openParagraph(paraProps);
++                writer.openParagraph(text[para].style, paraProps);
+ 
+                 for (unsigned i_spans = 0; i_spans < paraTexts[para].size(); ++i_spans)
+                 {
+@@ -1190,7 +1363,7 @@ std::function<void(void)> MSPUBCollector::paintShape(const ShapeInfo &info, cons
+                   m_painter->closeSpan();
+                 }
+ 
+-                m_painter->closeParagraph();
++                writer.closeParagraph(text[para].style);
+               }
+             }
+ 
+@@ -1239,10 +1412,11 @@ std::function<void(void)> MSPUBCollector::paintShape(const ShapeInfo &info, cons
+           props.insert("fo:column-gap", (double)ngap / EMUS_IN_INCH);
+       }
+       m_painter->startTextObject(props);
++      ParagraphWriter writer(m_painter);
+       for (const auto &line : text)
+       {
+         librevenge::RVNGPropertyList paraProps = getParaStyleProps(line.style, line.style.m_defaultCharStyleIndex);
+-        m_painter->openParagraph(paraProps);
++        writer.openParagraph(line.style, paraProps);
+         for (unsigned i_spans = 0; i_spans < line.spans.size(); ++i_spans)
+         {
+           librevenge::RVNGString textString;
+@@ -1253,8 +1427,9 @@ std::function<void(void)> MSPUBCollector::paintShape(const ShapeInfo &info, cons
+           separateSpacesAndInsertText(m_painter, textString);
+           m_painter->closeSpan();
+         }
+-        m_painter->closeParagraph();
++        writer.closeParagraph(line.style);
+       }
++      writer.closeList();
+       m_painter->endTextObject();
+     }
+   }
+diff --git a/src/lib/MSPUBParser.cpp b/src/lib/MSPUBParser.cpp
+index 4e389cb..74fbc90 100644
+--- a/src/lib/MSPUBParser.cpp
++++ b/src/lib/MSPUBParser.cpp
+@@ -1360,10 +1360,13 @@ ParagraphStyle MSPUBParser::getParagraphStyle(librevenge::RVNGInputStream *input
+         switch (listSubInfo.id)
+         {
+         case PARAGRAPH_LIST_NUMBERING_TYPE:
+-          numberingType = static_cast<NumberingType>(info.data);
++          numberingType = static_cast<NumberingType>(listSubInfo.data);
+           break;
+         case PARAGRAPH_LIST_BULLET_CHAR:
+-          bulletChar = info.data;
++          bulletChar = listSubInfo.data;
++          break;
++        case PARAGRAPH_LIST_NUMBERING_DELIMITER:
++          numberingDelimiter = static_cast<NumberingDelimiter>(listSubInfo.data);
+           break;
+         default:
+           break;

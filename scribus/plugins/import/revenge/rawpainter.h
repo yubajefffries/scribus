@@ -165,6 +165,10 @@ private:
 	int m_importerFlags;
 	bool m_doProcessing { true };
 	QString m_fileType;
+	// innermost open list level; the list's paragraph style effect (bullet or number)
+	ParagraphStyle m_listStyle;
+	QStack<ParagraphStyle> m_listStack;
+	int m_listParaStart { -1 };
 };
 
 class RawPainterPres : public librevenge::RVNGRawTextGenerator
