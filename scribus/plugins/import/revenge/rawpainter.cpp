@@ -36,6 +36,25 @@ for which a new license (GPL+exception) is in place.
 
 #if HAVE_REVENGE
 
+// Publisher sizes text frames with its own font metrics. When Scribus needs a little
+// more room the last lines would silently disappear, so grow the frame (up to half
+// its height again) until the text fits. Linked frames are left alone.
+static void growTextFrameToFit(PageItem* ite)
+{
+	if (!ite->isTextFrame() || ite->nextInChain() || ite->prevInChain())
+		return;
+	const double maxHeight = ite->height() * 1.5;
+	ite->invalidateLayout();
+	ite->layout();
+	while (ite->frameOverflows() && (ite->height() + 1.0 <= maxHeight))
+	{
+		ite->setHeight(ite->height() + 1.0);
+		ite->updateClip();
+		ite->invalidateLayout();
+		ite->layout();
+	}
+}
+
 RawPainterPres::RawPainterPres(ScribusDoc* Doc, double x, double y, double w, double h, int iflags, QList<PageItem*> *Elem, QStringList *iColors, QStringList *iPatterns, Selection* tSel, const QString& fTyp) : librevenge::RVNGRawTextGenerator(false)
 {
 	painter = new RawPainter(Doc, x, y, w, h, iflags, Elem, iColors, iPatterns, tSel, fTyp);
@@ -1401,7 +1420,8 @@ void RawPainter::startTextObject(const librevenge::RVNGPropertyList &propList)
 			else if (align == "bottom")
 				ite->setVerticalAlignment(2);
 		}
-		ite->setFirstLineOffset(FLOPLineSpacing);
+		// Publisher puts the first baseline at the font ascent and sizes frames to fit that
+		ite->setFirstLineOffset((m_fileType == "pub") ? FLOPFontAscent : FLOPLineSpacing);
 		m_currTextItem = ite;
 		QString pStyle = CommonStrings::DefaultParagraphStyle;
 		ParagraphStyle newStyle;
@@ -1422,7 +1442,11 @@ void RawPainter::endTextObject()
 	if (!m_doProcessing)
 		return;
 	if (m_currTextItem)
+	{
 		m_currTextItem->itemText.trim();
+		if (m_fileType == "pub")
+			growTextFrameToFit(m_currTextItem);
+	}
 	m_currTextItem = nullptr;
 	m_lineSpSet = false;
 	m_lineSpIsPT = false;
@@ -1650,8 +1674,8 @@ void RawPainter::openSpan(const librevenge::RVNGPropertyList &propList)
 				styleEffects |= ScStyle_Superscript;
 			else if (pos[0] == "sub")
 				styleEffects |= ScStyle_Subscript;
-			else
-				m_textCharStyle.setBaselineOffset(m_textCharStyle.fontSize() * fromPercentage(pos[0]) * 10);
+			else // percentage of the font size; Scribus stores 1/1000 of the font size
+				m_textCharStyle.setBaselineOffset(qRound(fromPercentage(pos[0]) * 1000.0));
 		}
 		if (pos.size() > 1)
 			// TODO: Scribus makes font size for sub-/superscript smaller, so this doesn't match well.
