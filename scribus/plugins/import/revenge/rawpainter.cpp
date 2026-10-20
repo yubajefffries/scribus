@@ -3423,7 +3423,7 @@ QString RawPainter::constructFontName(const QString& fontBaseName, const QString
 	}
 	if (!found)
 	{
-		if (m_importerFlags & LoadSavePlugin::lfCreateThumbnail)
+		if ((m_importerFlags & LoadSavePlugin::lfCreateThumbnail) || !PrefsManager::instance().appPrefs.fontPrefs.askBeforeSubstitute)
 			fontName = PrefsManager::instance().appPrefs.itemToolPrefs.textFont;
 		else
 		{
