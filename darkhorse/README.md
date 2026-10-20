@@ -37,12 +37,17 @@ darkhorse\deploy-runtime-x64.bat Release
 
 ## Patches to the libs kit
 
-`darkhorse\patches\libmspub-0.1.4-*.patch` change libmspub inside the kit (it is linked
-statically into the pub importer). `patch-libs-x64.bat` applies them with `git apply`
-(skips ones already applied) and rebuilds libmspub; then rebuild Scribus.
+`darkhorse\patches\libmspub-0.1.4-NN-*.patch` change libmspub inside the kit (it is linked
+statically into the pub importer). `patch-libs-x64.bat` applies them in number order with
+`git apply` (skips ones already applied) and rebuilds libmspub; then rebuild Scribus.
 
-- `picture-crop`: read Publisher's picture crop (OfficeArt 0x0100-0x0103) and pass it as
-  `librevenge:crop-top/bottom/left/right` fractions. Upstream candidate for libmspub.
+- `01-picture-crop`: read Publisher's picture crop (OfficeArt 0x0100-0x0103) and pass it as
+  `librevenge:crop-top/bottom/left/right` fractions.
+- `02-inline-object-text`: objects anchored inline in text live on an internal dummy page
+  and were never drawn, so their text was lost. Splice each inline story's paragraphs in at
+  its U+FFFC marker (markers and inline stories paired in document order).
+
+Both are upstream candidates for libmspub.
 
 ## .pub import test
 
