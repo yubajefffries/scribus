@@ -3539,7 +3539,28 @@ void RawPainter::insertImage(PageItem* ite, const QString& imgExt, QByteArray &i
 		m_doc->loadPict(fileName, ite);
 		bool stretch = m_style["style:repeat"] && m_style["style:repeat"]->getStr() == "stretch";
 		if (stretch && ite->imageIsAvailable)
-			ite->setImageScalingMode(false, true);
+		{
+			// Publisher fills the frame with the picture, or with the cropped part of it
+			if ((m_fileType == "pub") && (ite->OrigW > 0) && (ite->OrigH > 0))
+			{
+				double cropTop = m_style["librevenge:crop-top"] ? m_style["librevenge:crop-top"]->getDouble() : 0.0;
+				double cropBottom = m_style["librevenge:crop-bottom"] ? m_style["librevenge:crop-bottom"]->getDouble() : 0.0;
+				double cropLeft = m_style["librevenge:crop-left"] ? m_style["librevenge:crop-left"]->getDouble() : 0.0;
+				double cropRight = m_style["librevenge:crop-right"] ? m_style["librevenge:crop-right"]->getDouble() : 0.0;
+				double visibleW = 1.0 - cropLeft - cropRight;
+				double visibleH = 1.0 - cropTop - cropBottom;
+				if (visibleW <= 0.0 || visibleH <= 0.0)
+				{
+					cropLeft = cropTop = 0.0;
+					visibleW = visibleH = 1.0;
+				}
+				ite->setImageScalingMode(true, false);
+				ite->setImageXYScale(ite->width() / (ite->OrigW * visibleW), ite->height() / (ite->OrigH * visibleH));
+				ite->setImageXYOffset(-cropLeft * ite->OrigW, -cropTop * ite->OrigH);
+			}
+			else
+				ite->setImageScalingMode(false, true);
+		}
 // #if HAVE_REVENGE
 // 		if (m_style["librevenge:rotate"])
 // 		{
