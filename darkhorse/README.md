@@ -30,9 +30,26 @@ verify each against its `.sha256`, extract, and move the contents under `6.11.2\
 
 ```
 darkhorse\build-libs-x64.bat            # once per libs kit, about 20 min on 2 cores
+darkhorse\patch-libs-x64.bat            # apply darkhorse\patches to the kit, rebuild libmspub
 darkhorse\build-scribus-x64.bat Release # about 20 min clean
 darkhorse\deploy-runtime-x64.bat Release
 ```
+
+## Patches to the libs kit
+
+`darkhorse\patches\libmspub-0.1.4-*.patch` change libmspub inside the kit (it is linked
+statically into the pub importer). `patch-libs-x64.bat` applies them with `git apply`
+(skips ones already applied) and rebuilds libmspub; then rebuild Scribus.
+
+- `picture-crop`: read Publisher's picture crop (OfficeArt 0x0100-0x0103) and pass it as
+  `librevenge:crop-top/bottom/left/right` fractions. Upstream candidate for libmspub.
+
+## .pub import test
+
+`darkhorse\pubtest\run-pubtest.ps1` imports every `.pub` in `C:\Developer\pub-samples`
+(one Scribus process each, throwaway profile) and writes `report.json`, page PNGs and an
+`.sla` per file under `C:\Developer\pubtest-out`. Sample files are client documents and
+stay out of the repo.
 
 Gotchas:
 - The libs kit pins Windows SDK 8.1 (and older Win10 SDKs); both build scripts pass

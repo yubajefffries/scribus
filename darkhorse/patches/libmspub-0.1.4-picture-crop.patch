@@ -1,0 +1,141 @@
+diff --git a/src/lib/EscherFieldIds.h b/src/lib/EscherFieldIds.h
+index 6245ea4..7d4542c 100644
+--- a/src/lib/EscherFieldIds.h
++++ b/src/lib/EscherFieldIds.h
+@@ -74,6 +74,10 @@
+ #define FIELDID_END_ARROW_STYLE        0x01D1
+ #define FIELDID_END_ARROW_WIDTH        0x01D4
+ #define FIELDID_END_ARROW_HEIGHT       0x01D5
++#define FIELDID_CROP_FROM_TOP          0x0100
++#define FIELDID_CROP_FROM_BOTTOM       0x0101
++#define FIELDID_CROP_FROM_LEFT         0x0102
++#define FIELDID_CROP_FROM_RIGHT        0x0103
+ #define FIELDID_PICTURE_CONTRAST       0x0108
+ #define FIELDID_PICTURE_BRIGHTNESS     0x0109
+ #define FIELDID_PICTURE_RECOLOR        0x011A
+diff --git a/src/lib/MSPUBCollector.cpp b/src/lib/MSPUBCollector.cpp
+index 405470e..99f1458 100644
+--- a/src/lib/MSPUBCollector.cpp
++++ b/src/lib/MSPUBCollector.cpp
+@@ -376,6 +376,12 @@ void MSPUBCollector::setShapePictureContrast(unsigned seqNum,
+   m_shapeInfosBySeqNum[seqNum].m_pictureContrast = contrast;
+ }
+ 
++void MSPUBCollector::setShapePictureCrop(unsigned seqNum,
++                                         const PictureCrop &crop)
++{
++  m_shapeInfosBySeqNum[seqNum].m_pictureCrop = crop;
++}
++
+ void MSPUBCollector::setShapeBeginArrow(unsigned seqNum,
+                                         const Arrow &arrow)
+ {
+@@ -787,6 +793,13 @@ std::function<void(void)> MSPUBCollector::paintShape(const ShapeInfo &info, cons
+     }
+     if (bool(info.m_pictureBrightness))
+       graphicsProps.insert("draw:luminance", static_cast<double>(info.m_pictureBrightness.get() + 32768.0) / 65536.0, librevenge::RVNG_PERCENT);
++    if (bool(info.m_pictureCrop))
++    {
++      graphicsProps.insert("librevenge:crop-top", info.m_pictureCrop.get().m_top, librevenge::RVNG_PERCENT);
++      graphicsProps.insert("librevenge:crop-bottom", info.m_pictureCrop.get().m_bottom, librevenge::RVNG_PERCENT);
++      graphicsProps.insert("librevenge:crop-left", info.m_pictureCrop.get().m_left, librevenge::RVNG_PERCENT);
++      graphicsProps.insert("librevenge:crop-right", info.m_pictureCrop.get().m_right, librevenge::RVNG_PERCENT);
++    }
+     bool shadowPropsInserted = false;
+     if (bool(info.m_shadow))
+     {
+@@ -817,6 +830,13 @@ std::function<void(void)> MSPUBCollector::paintShape(const ShapeInfo &info, cons
+     }
+     if (bool(info.m_pictureBrightness))
+       graphicsProps.remove("draw:luminance");
++    if (bool(info.m_pictureCrop))
++    {
++      graphicsProps.remove("librevenge:crop-top");
++      graphicsProps.remove("librevenge:crop-bottom");
++      graphicsProps.remove("librevenge:crop-left");
++      graphicsProps.remove("librevenge:crop-right");
++    }
+     if (shadowPropsInserted)
+     {
+       graphicsProps.remove("draw:shadow");
+diff --git a/src/lib/MSPUBCollector.h b/src/lib/MSPUBCollector.h
+index a1f0db3..66aebc1 100644
+--- a/src/lib/MSPUBCollector.h
++++ b/src/lib/MSPUBCollector.h
+@@ -72,6 +72,7 @@ public:
+   void setShapePictureRecolor(unsigned seqNum, const ColorReference &recolor);
+   void setShapePictureBrightness(unsigned seqNum, int brightness);
+   void setShapePictureContrast(unsigned seqNum, int contrast);
++  void setShapePictureCrop(unsigned seqNum, const PictureCrop &crop);
+   void setShapeTableInfo(unsigned seqNum, const TableInfo &ti);
+   void setShapeBorderImageId(unsigned seqNum, unsigned borderImageId);
+   void setShapeCoordinatesInEmu(unsigned seqNum, int xs, int ys, int xe, int ye);
+diff --git a/src/lib/MSPUBParser.cpp b/src/lib/MSPUBParser.cpp
+index 883cf67..4e389cb 100644
+--- a/src/lib/MSPUBParser.cpp
++++ b/src/lib/MSPUBParser.cpp
+@@ -1703,6 +1703,20 @@ void MSPUBParser::parseEscherShape(librevenge::RVNGInputStream *input, const Esc
+             {
+               m_collector->setShapePictureContrast(*shapeSeqNum, (int)(*ptr_pictureContrast));
+             }
++            unsigned *ptr_cropTop = getIfExists(foptValues.m_scalarValues, FIELDID_CROP_FROM_TOP);
++            unsigned *ptr_cropBottom = getIfExists(foptValues.m_scalarValues, FIELDID_CROP_FROM_BOTTOM);
++            unsigned *ptr_cropLeft = getIfExists(foptValues.m_scalarValues, FIELDID_CROP_FROM_LEFT);
++            unsigned *ptr_cropRight = getIfExists(foptValues.m_scalarValues, FIELDID_CROP_FROM_RIGHT);
++            if (ptr_cropTop || ptr_cropBottom || ptr_cropLeft || ptr_cropRight)
++            {
++              // Crop values are signed 16.16 fixed point fractions of the picture size
++              PictureCrop crop;
++              crop.m_top = ptr_cropTop ? toFixedPoint((int)(*ptr_cropTop)) : 0;
++              crop.m_bottom = ptr_cropBottom ? toFixedPoint((int)(*ptr_cropBottom)) : 0;
++              crop.m_left = ptr_cropLeft ? toFixedPoint((int)(*ptr_cropLeft)) : 0;
++              crop.m_right = ptr_cropRight ? toFixedPoint((int)(*ptr_cropRight)) : 0;
++              m_collector->setShapePictureCrop(*shapeSeqNum, crop);
++            }
+           }
+           unsigned *ptr_lineBackColor =
+             getIfExists(foptValues.m_scalarValues, FIELDID_LINE_BACK_COLOR);
+diff --git a/src/lib/MSPUBTypes.h b/src/lib/MSPUBTypes.h
+index d44d020..c53a85d 100644
+--- a/src/lib/MSPUBTypes.h
++++ b/src/lib/MSPUBTypes.h
+@@ -67,6 +67,16 @@ enum Alignment
+   JUSTIFY = 6
+ };
+ 
++// Picture crop, as fractions of the picture size (negative values pad).
++struct PictureCrop
++{
++  PictureCrop() : m_top(0), m_bottom(0), m_left(0), m_right(0) { }
++  double m_top;
++  double m_bottom;
++  double m_left;
++  double m_right;
++};
++
+ struct EscherContainerInfo
+ {
+   unsigned short initial;
+diff --git a/src/lib/ShapeInfo.h b/src/lib/ShapeInfo.h
+index ff50787..b67a54c 100644
+--- a/src/lib/ShapeInfo.h
++++ b/src/lib/ShapeInfo.h
+@@ -67,7 +67,8 @@ struct ShapeInfo
+   std::vector<libmspub::Vertex> m_clipPath;
+   boost::optional<int> m_pictureBrightness;
+   boost::optional<int> m_pictureContrast;
+-  ShapeInfo() : m_type(), m_cropType(), m_imgIndex(), m_borderImgIndex(),
++  boost::optional<PictureCrop> m_pictureCrop;
++  ShapeInfo() :m_type(), m_cropType(), m_imgIndex(), m_borderImgIndex(),
+     m_coordinates(), m_lines(), m_pageSeqNum(),
+     m_textId(), m_adjustValuesByIndex(), m_adjustValues(),
+     m_rotation(), m_flips(), m_margins(), m_borderPosition(),
+@@ -75,7 +76,7 @@ struct ShapeInfo
+     m_lineBackColor(), m_dash(), m_tableInfo(),
+     m_numColumns(),
+     m_columnSpacing(0), m_beginArrow(), m_endArrow(),
+-    m_verticalAlign(), m_pictureRecolor(), m_shadow(), m_innerRotation(), m_clipPath(), m_pictureBrightness(), m_pictureContrast()
++    m_verticalAlign(), m_pictureRecolor(), m_shadow(), m_innerRotation(), m_clipPath(), m_pictureBrightness(), m_pictureContrast(), m_pictureCrop()
+   {
+   }
+   std::shared_ptr<const CustomShape> getCustomShape() const
