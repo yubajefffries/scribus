@@ -9,6 +9,7 @@ set OUT=%BUILDS%\Scribus-%CFG%-x64-v143
 if not exist "%OUT%\Scribus.exe" (echo %OUT%\Scribus.exe not found, build first & exit /b 1)
 pushd C:\Developer\scribus-1.7.x-libs-msvc
 call .\copy-dlls-to-build-dir.bat %BUILDS% >nul
+@echo off
 popd
 set WDQ_MODE=--release
 if /i "%CFG%"=="Debug" set WDQ_MODE=--debug
