@@ -221,6 +221,7 @@ for which a new license (GPL+exception) is in place.
 #include "ui/movepage.h"
 #include "ui/multipleduplicate.h"
 #include "ui/newdocdialog.h"
+#include "ui/startscreen.h"
 #include "ui/nftdialog.h"
 #include "ui/nftwidget.h"
 #include "ui/nodeeditpalette.h"
@@ -2091,6 +2092,208 @@ bool ScribusMainWindow::recoverFile(const QStringList& foundFiles)
 
 void ScribusMainWindow::startUpDialog()
 {
+	StartScreen screen(this, m_recentDocsList, true);
+	const bool accepted = screen.exec();
+	m_prefsManager.setShowStartupDialog(screen.showAtStartup());
+	if (accepted && screen.choice() == StartScreen::MoreOptions)
+	{
+		startUpDialogClassic();
+		return;
+	}
+	if (!accepted || !runStartScreenChoice(screen))
+	{
+		appModeHelper->setStartupActionsEnabled(false);
+		m_mainWindowStatusLabel->setText( tr("Ready"));
+	}
+}
+
+bool ScribusMainWindow::slotFileNew()
+{
+	if (HaveDoc && doc->appMode == modeEditClip)
+		view->requestMode(submodeEndNodeEdit);
+
+	StartScreen screen(this, m_recentDocsList, false);
+	if (!screen.exec())
+		return false;
+	if (screen.choice() == StartScreen::MoreOptions)
+		return slotFileNewClassic();
+	return runStartScreenChoice(screen);
+}
+
+bool ScribusMainWindow::runStartScreenChoice(const StartScreen& screen)
+{
+	switch (screen.choice())
+	{
+		case StartScreen::OpenPublisher:
+			return openPublisherFile();
+		case StartScreen::OpenOther:
+			return slotFileOpen();
+		case StartScreen::OpenRecent:
+			loadRecent(screen.recentFile());
+			return HaveDoc;
+		case StartScreen::None:
+		case StartScreen::MoreOptions:
+			return false;
+		default:
+			return newStartDocument(screen.choice());
+	}
+}
+
+bool ScribusMainWindow::openPublisherFile()
+{
+	PrefsContext* docContext = m_prefsManager.prefsFile->getContext("docdirs", false);
+	QString prefsDocDir(m_prefsManager.documentDir());
+	QString docDir = docContext->get("docsopen", prefsDocDir.isEmpty() ? QString(".") : prefsDocDir);
+	QString filter = tr("Microsoft Publisher files (*.pub *.PUB)") + ";;" + tr("All Files (*)");
+	QPair<QString, uint> fileNameVersion = CFileDialog(docDir, tr("Open a Publisher File"), filter, "", fdDisableOk);
+	if (fileNameVersion.first.isEmpty())
+		return false;
+	docContext->set("docsopen", QFileInfo(fileNameVersion.first).absolutePath());
+	return loadDoc(fileNameVersion.first);
+}
+
+// Ready-made starting points for the start screen. Sizes in points (72 per inch);
+// the documents measure in inches, like Publisher.
+bool ScribusMainWindow::newStartDocument(int kind)
+{
+	const double in = 72.0;
+	double width = 8.5 * in;
+	double height = 11.0 * in;
+	double topMargin = 0.5 * in;
+	double sideMargin = 0.5 * in;
+	double bleed = 0.0;
+	int pageCount = 1;
+	switch (kind)
+	{
+		case StartScreen::BusinessCard:
+			width = 3.5 * in;
+			height = 2.0 * in;
+			topMargin = sideMargin = 0.125 * in;
+			bleed = 0.125 * in;
+			break;
+		case StartScreen::Postcard:
+			width = 6.0 * in;
+			height = 4.0 * in;
+			topMargin = sideMargin = 0.25 * in;
+			bleed = 0.125 * in;
+			pageCount = 2;
+			break;
+		case StartScreen::LabelSheet:
+			// Avery 5160 / 8160: 3 x 10 labels of 2.625 x 1 in
+			topMargin = 0.5 * in;
+			sideMargin = 0.1875 * in;
+			break;
+		case StartScreen::Newsletter:
+			topMargin = sideMargin = 0.75 * in;
+			pageCount = 2;
+			break;
+		default:
+			break;
+	}
+	const int orientation = (width > height) ? 1 : 0;
+	if (!doFileNew(width, height, topMargin, sideMargin, sideMargin, topMargin, 0.25 * in, 1, false, 0, SC_INCHES,
+			0, orientation, 1, QSizeF(width, height), true, pageCount))
+		return false;
+	doc->bleeds()->set(bleed, bleed, bleed, bleed);
+	HaveNewDoc();
+	doc->reformPages(true);
+
+	auto addText = [this](const ScPage* page, double x, double y, double w, double h, const QString& text, double fontSize, int alignment, int columns = 1) -> PageItem*
+	{
+		int z = doc->itemAdd(PageItem::TextFrame, PageItem::Unspecified, page->xOffset() + x, page->yOffset() + y, w, h, 0, CommonStrings::None, CommonStrings::None);
+		PageItem* item = doc->Items->at(z);
+		item->setTextToFrameDist(4, 4, 4, 4);
+		if (columns > 1)
+		{
+			item->setColumns(columns);
+			item->setColumnGap(18);
+		}
+		if (!text.isEmpty())
+		{
+			QString story(text);
+			story.replace(QChar('\n'), SpecialChars::PARSEP);
+			item->itemText.insertChars(0, story);
+			CharStyle cs;
+			cs.setFontSize(qRound(fontSize * 10));
+			item->itemText.applyCharStyle(0, item->itemText.length(), cs);
+			ParagraphStyle ps;
+			ps.setAlignment(static_cast<ParagraphStyle::AlignmentType>(alignment));
+			ps.setLineSpacingMode(ParagraphStyle::FixedLineSpacing);
+			ps.setLineSpacing(fontSize * 1.2);
+			for (int i = 0; i < item->itemText.nrOfParagraphs(); ++i)
+				item->itemText.applyStyle(item->itemText.startOfParagraph(i), ps);
+		}
+		item->invalidateLayout();
+		return item;
+	};
+	auto addPicture = [this](const ScPage* page, double x, double y, double w, double h)
+	{
+		doc->itemAdd(PageItem::ImageFrame, PageItem::Unspecified, page->xOffset() + x, page->yOffset() + y, w, h, 1,
+			doc->itemToolPrefs().imageFillColor, doc->itemToolPrefs().imageStrokeColor);
+	};
+
+	const ScPage* first = doc->Pages->at(0);
+	const double contentWidth = width - 2 * sideMargin;
+	QString title;
+	switch (kind)
+	{
+		case StartScreen::Flyer:
+			title = tr("Flyer");
+			addText(first, sideMargin, topMargin, contentWidth, 1.4 * in, tr("Your Headline Here"), 44, ParagraphStyle::Centered);
+			addPicture(first, sideMargin, topMargin + 1.6 * in, contentWidth, 4.8 * in);
+			addText(first, sideMargin, topMargin + 6.6 * in, contentWidth, height - 2 * topMargin - 6.6 * in,
+				tr("Say what is happening, when and where.\nClick here and start typing."), 18, ParagraphStyle::Centered);
+			break;
+		case StartScreen::BusinessCard:
+			title = tr("Business Card");
+			addText(first, sideMargin, 0.35 * in, contentWidth, 0.5 * in, tr("Your Name"), 14, ParagraphStyle::LeftAligned);
+			addText(first, sideMargin, 0.85 * in, contentWidth, 1.0 * in,
+				tr("Job Title\nCompany Name\n(555) 555-5555\nname@example.com"), 8, ParagraphStyle::LeftAligned);
+			break;
+		case StartScreen::Postcard:
+		{
+			title = tr("Postcard");
+			addPicture(first, -bleed, -bleed, width + 2 * bleed, height + 2 * bleed);
+			const ScPage* back = doc->Pages->at(1);
+			const double half = width / 2;
+			addText(back, sideMargin, topMargin, half - sideMargin - 0.15 * in, height - 2 * topMargin, tr("Write your message here."), 11, ParagraphStyle::LeftAligned);
+			addText(back, half + 0.15 * in, 1.6 * in, half - sideMargin - 0.15 * in, 1.4 * in, tr("Name\nStreet Address\nCity, State ZIP"), 11, ParagraphStyle::LeftAligned);
+			break;
+		}
+		case StartScreen::LabelSheet:
+			title = tr("Address Labels");
+			for (int row = 0; row < 10; ++row)
+				for (int col = 0; col < 3; ++col)
+					addText(first, sideMargin + col * 2.75 * in, topMargin + row * in, 2.625 * in, 1.0 * in, QString(), 11, ParagraphStyle::LeftAligned)
+						->setTextToFrameDist(9, 9, 6, 6);
+			break;
+		case StartScreen::Newsletter:
+		{
+			title = tr("Newsletter");
+			addText(first, sideMargin, topMargin, contentWidth, 1.1 * in, tr("Newsletter Title"), 36, ParagraphStyle::LeftAligned);
+			const double storyTop = topMargin + 1.3 * in;
+			PageItem* story = addText(first, sideMargin, storyTop, contentWidth, height - topMargin - storyTop,
+				tr("Lead story headline\nStart typing your story here. When this page fills up, the text continues on page 2."), 11, ParagraphStyle::LeftAligned, 2);
+			PageItem* more = addText(doc->Pages->at(1), sideMargin, topMargin, contentWidth, height - 2 * topMargin, QString(), 11, ParagraphStyle::LeftAligned, 2);
+			story->link(more, false);
+			break;
+		}
+		default:
+			title = tr("Blank Page");
+			break;
+	}
+
+	doc->changed();
+	view->DrawNew();
+	// Don't ask "save?" for a document nobody has touched yet
+	doc->setModified(false);
+	updateActiveWindowCaption(doc->documentFileName());
+	m_mainWindowStatusLabel->setText(tr("New %1 ready").arg(title));
+	return true;
+}
+
+void ScribusMainWindow::startUpDialogClassic()
+{
 	bool docSet = false;
 	PrefsContext* docContext = m_prefsManager.prefsFile->getContext("docdirs", false);
 	NewDocDialog* dia = new NewDocDialog(this, m_recentDocsList, true, ScCore->getGuiLanguage());
@@ -2169,7 +2372,7 @@ void ScribusMainWindow::startUpDialog()
 		slotDocSetup();
 }
 
-bool ScribusMainWindow::slotFileNew()
+bool ScribusMainWindow::slotFileNewClassic()
 {
 	if (HaveDoc && doc->appMode == modeEditClip)
 		view->requestMode(submodeEndNodeEdit);

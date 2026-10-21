@@ -109,6 +109,7 @@ class ScribusMainWindow;
 class ScribusQApp;
 class ScribusWin;
 class SimpleState;
+class StartScreen;
 class StoryEditor;
 class StyleManager;
 class SymbolPalette;
@@ -645,6 +646,13 @@ private:
 	void initPalettes();
 	void initScrapbook();
 	void updateColorMenu(QProgressBar* progressBar = nullptr);
+
+	/** PubWell start screen */
+	void startUpDialogClassic();
+	bool slotFileNewClassic();
+	bool runStartScreenChoice(const StartScreen& screen);
+	bool newStartDocument(int kind);
+	bool openPublisherFile();
 
 	int m_ScriptRunning {0};
 
