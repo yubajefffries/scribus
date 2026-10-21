@@ -3450,6 +3450,16 @@ void RawPainter::applyFill(PageItem* ite)
 
 QString RawPainter::constructFontName(const QString& fontBaseName, const QString& fontStyle)
 {
+	// CSS keywords end up as font names when styled text is pasted from a web page. They
+	// name no font, so don't ask the user about them. Publisher draws them with the Windows
+	// fallback font, Arial.
+	static const QStringList cssKeywords = { "inherit", "initial", "unset", "revert" };
+	if (cssKeywords.contains(fontBaseName.trimmed(), Qt::CaseInsensitive))
+	{
+		if (m_fileType == "pub")
+			return constructFontName("Arial", fontStyle);
+		return PrefsManager::instance().appPrefs.itemToolPrefs.textFont;
+	}
 	QString fontName;
 	bool found = false;
 	SCFontsIterator it(PrefsManager::instance().appPrefs.fontPrefs.AvailFonts);
