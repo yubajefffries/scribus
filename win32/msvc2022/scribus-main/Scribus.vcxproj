@@ -76,25 +76,25 @@
     <OutDir>..\..\..\..\Scribus-builds\Scribus-$(Configuration)-$(Platform)-$(PlatformToolset)\</OutDir>
     <IntDir>..\..\..\..\Scribus-builds\Build-objs\$(Configuration)-$(Platform)-$(PlatformToolset)\$(TargetName)\</IntDir>
     <LinkIncremental>true</LinkIncremental>
-    <TargetName>Scribus</TargetName>
+    <TargetName>PubWell</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <OutDir>..\..\..\..\Scribus-builds\Scribus-$(Configuration)-$(Platform)-$(PlatformToolset)\</OutDir>
     <IntDir>..\..\..\..\Scribus-builds\Build-objs\$(Configuration)-$(Platform)-$(PlatformToolset)\$(TargetName)\</IntDir>
     <LinkIncremental>true</LinkIncremental>
-    <TargetName>Scribus</TargetName>
+    <TargetName>PubWell</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
     <OutDir>..\..\..\..\Scribus-builds\Scribus-$(Configuration)-$(Platform)-$(PlatformToolset)\</OutDir>
     <IntDir>..\..\..\..\Scribus-builds\Build-objs\$(Configuration)-$(Platform)-$(PlatformToolset)\$(TargetName)\</IntDir>
     <LinkIncremental>false</LinkIncremental>
-    <TargetName>Scribus</TargetName>
+    <TargetName>PubWell</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <OutDir>..\..\..\..\Scribus-builds\Scribus-$(Configuration)-$(Platform)-$(PlatformToolset)\</OutDir>
     <IntDir>..\..\..\..\Scribus-builds\Build-objs\$(Configuration)-$(Platform)-$(PlatformToolset)\$(TargetName)\</IntDir>
     <LinkIncremental>false</LinkIncremental>
-    <TargetName>Scribus</TargetName>
+    <TargetName>PubWell</TargetName>
   </PropertyGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
     <ClCompile>
@@ -791,6 +791,7 @@
     <ClInclude Include="..\..\..\scribus\scpainterex_cairo.h" />
     <ClInclude Include="..\..\..\scribus\scpainterex_ps2.h" />
     <ClInclude Include="..\..\..\scribus\scpainterexbase.h" />
+    <ClInclude Include="..\..\..\scribus\branding.h" />
     <ClInclude Include="..\..\..\scribus\scpaths.h" />
     <ClInclude Include="..\..\..\scribus\scpattern.h" />
     <ClInclude Include="..\..\..\scribus\scpatterntransform.h" />
@@ -1528,6 +1529,7 @@
     <ClCompile Include="..\..\..\scribus\scpainterex_cairo.cpp" />
     <ClCompile Include="..\..\..\scribus\scpainterex_ps2.cpp" />
     <ClCompile Include="..\..\..\scribus\scpainterexbase.cpp" />
+    <ClCompile Include="..\..\..\scribus\branding.cpp" />
     <ClCompile Include="..\..\..\scribus\scpaths.cpp" />
     <ClCompile Include="..\..\..\scribus\scpattern.cpp" />
     <ClCompile Include="..\..\..\scribus\scplugin.cpp" />

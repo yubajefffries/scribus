@@ -44,6 +44,7 @@ for which a new license (GPL+exception) is in place.
 #define MAX_LINES 500
 
 #include "scribusapp.h"
+#include "branding.h"
 #include "scribuscore.h"
 #include "scribus.h"
 #include "scimagecachemanager.h"
@@ -103,6 +104,8 @@ int main(int argc, char *argv[])
 	ScribusQApp::setHighDpiScaleFactorRoundingPolicy(Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
 	QImageReader::setAllocationLimit(1024);
 
+	// PubWell: also names the settings folder (AppDataLocation), separate from Scribus
+	QCoreApplication::setApplicationName(Branding::productName());
 	ScribusQApp app(argc, argv);
 	setPythonEnvironment(ScribusQApp::applicationDirPath());
 	result =  mainApp(app);

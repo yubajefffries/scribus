@@ -34,6 +34,7 @@ for which a new license (GPL+exception) is in place.
 #include <QMessageBox>
 
 #include "scribusapp.h"
+#include "branding.h"
 #include "scribuscore.h"
 #include "scribus.h"
 #include "scimagecachemanager.h"
@@ -74,6 +75,8 @@ int mainApp(int argc, char **argv)
 
 	QImageReader::setAllocationLimit(1024);
 
+	// PubWell: also names the settings folder (AppDataLocation), separate from Scribus
+	QCoreApplication::setApplicationName(Branding::productName());
 	ScribusQApp app(argc, argv);
 	initCrashHandler();
 	app.parseCommandLine();

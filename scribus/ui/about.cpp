@@ -29,6 +29,7 @@ for which a new license (GPL+exception) is in place.
 #include "scconfig.h"
 #include "about.h"
 #include "api/api_application.h"
+#include "branding.h"
 #include "commonstrings.h"
 #ifdef HAVE_BOOST
 #include <boost/version.hpp>
@@ -143,6 +144,15 @@ About::About( QWidget* parent, AboutMode diaMode ) : QDialog( parent )
 	buildID->setTextInteractionFlags(Qt::TextSelectableByMouse);
 	buildID->setText( tr("<p align=\"center\"><b>%1 %2</b></p>").arg( tr("Scribus Version"), ScribusAPI::getVersion()));
 	tabLayout1->addWidget( buildID, 0, Qt::AlignHCenter );
+	// PubWell credit line; "Scribus" goes in as an argument so the rebrand translator leaves it alone
+	QLabel* basedOn = new QLabel( tab );
+	basedOn->setAlignment(Qt::AlignCenter);
+	basedOn->setWordWrap(true);
+	basedOn->setOpenExternalLinks(true);
+	basedOn->setText( tr("<p align=\"center\">%1 is based on <a href=\"https://www.scribus.net\">%2</a>, the open source desktop publishing program, "
+						 "and is free software under the GNU General Public License.<br/>Thank you to the %2 team and contributors.</p>")
+						  .arg(Branding::productName(), QStringLiteral("Scribus")) );
+	tabLayout1->addWidget( basedOn );
 	tabWidget2->addTab( tab, tr("&About") );
 
 	/*! AUTHORS tab */

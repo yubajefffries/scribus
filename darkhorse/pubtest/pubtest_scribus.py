@@ -1,6 +1,6 @@
 # Runs inside Scribus (-py). Opens one .pub, writes a JSON report, a PNG per
 # page and an .sla copy into the output folder, then exits the process.
-# Usage: Scribus.exe --prefs <profile> -ns -py pubtest_scribus.py <file.pub> <outdir>
+# Usage: PubWell.exe --prefs <profile> -ns -py pubtest_scribus.py <file.pub> <outdir>
 import json
 import os
 import sys

@@ -36,6 +36,7 @@ for which a new license (GPL+exception) is in place.
 #include <QTranslator>
 
 #include "scribusapp.h"
+#include "branding.h"
 
 #include "downloadmanager/scdlmgr.h"
 #include "iconmanager.h"
@@ -518,6 +519,12 @@ void ScribusQApp::installTranslators(const QStringList & langs)
 	}
 	else if (lang == "en")
 		m_GUILang = lang;
+	QList<const QTranslator*> wrapped;
+	if (loadedScribus)
+		wrapped.append(trans);
+	if (loadedQt)
+		wrapped.append(transQt);
+	Branding::installRebrandTranslator(this, wrapped);
 	/* CB TODO, currently disabled, because its broken broken broken
 	path = ScPaths::instance().pluginDir();
 	QDir dir(path , "*.*", QDir::Name, QDir::Files | QDir::NoSymLinks);

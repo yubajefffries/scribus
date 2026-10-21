@@ -6,13 +6,13 @@ set CFG=%1
 if "%CFG%"=="" set CFG=Release
 set BUILDS=C:\Developer\Scribus-builds
 set OUT=%BUILDS%\Scribus-%CFG%-x64-v143
-if not exist "%OUT%\Scribus.exe" (echo %OUT%\Scribus.exe not found, build first & exit /b 1)
+if not exist "%OUT%\PubWell.exe" (echo %OUT%\PubWell.exe not found, build first & exit /b 1)
 pushd C:\Developer\scribus-1.7.x-libs-msvc
 call .\copy-dlls-to-build-dir.bat %BUILDS% >nul
 @echo off
 popd
 set WDQ_MODE=--release
 if /i "%CFG%"=="Debug" set WDQ_MODE=--debug
-C:\Developer\Qt\6.11.2\msvc2022_64\bin\windeployqt.exe %WDQ_MODE% --no-compiler-runtime --plugindir "%OUT%\qtplugins" "%OUT%\Scribus.exe" >nul || exit /b 1
+C:\Developer\Qt\6.11.2\msvc2022_64\bin\windeployqt.exe %WDQ_MODE% --no-compiler-runtime --plugindir "%OUT%\qtplugins" "%OUT%\PubWell.exe" >nul || exit /b 1
 (echo [Paths]& echo Plugins=qtplugins) > "%OUT%\qt.conf"
 echo Deployed runtime to %OUT%

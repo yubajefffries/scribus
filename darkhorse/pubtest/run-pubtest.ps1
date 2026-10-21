@@ -20,7 +20,7 @@ $results = foreach ($pub in Get-ChildItem $Samples -Filter *.pub) {
     if (Test-Path $out) { Remove-Item -Recurse -Force $out }
     New-Item -ItemType Directory -Force $out | Out-Null
     $sw = [Diagnostics.Stopwatch]::StartNew()
-    $p = Start-Process (Join-Path $Build 'Scribus.exe') -WorkingDirectory $Build -PassThru `
+    $p = Start-Process (Join-Path $Build 'PubWell.exe') -WorkingDirectory $Build -PassThru `
         -ArgumentList @('--prefs', "`"$prefsDir`"", '-ns', '-py', "`"$script`"", "`"$($pub.FullName)`"", "`"$out`"")
     $status = if ($p.WaitForExit($TimeoutSec * 1000)) { "exit $($p.ExitCode)" } else { $p.Kill(); 'TIMEOUT' }
     $reportFile = Join-Path $out 'report.json'
