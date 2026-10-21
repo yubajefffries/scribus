@@ -29,7 +29,7 @@ LANGUAGE LANG_NEUTRAL, SUBLANG_NEUTRAL
 
 // Icon with lowest ID value placed first to ensure application icon
 // remains consistent on all systems.
-SCRIBUSICO              ICON                    "scribusicon.ico"
+SCRIBUSICO              ICON                    "pubwell.ico"
 SCRIBUSDOC              ICON                    "scribusdoc.ico"
 #endif    // Neutre resources
 /////////////////////////////////////////////////////////////////////////////

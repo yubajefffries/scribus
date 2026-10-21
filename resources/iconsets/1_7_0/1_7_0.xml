@@ -180,7 +180,7 @@ On Dark:  #e580ff; rgb(229, 128, 255); hsl(288, 100, 75)
 		<icon id="swap-right" file="16/distribute-swap-right.svg" />
     
     		<!-- Application -->
-    		<icon id="app-icon" file="scribus-icon.svg" />
+    		<icon id="app-icon" file="pubwell-icon.svg" />
     
     		<!-- Bezier & Vector Path-->
     		<icon id="bezier-close" file="16/bezier-close.svg" />

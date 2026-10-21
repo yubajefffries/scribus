@@ -1711,7 +1711,7 @@
       <FileType>Document</FileType>
     </ClInclude>
     <None Include="scribusdoc.ico" />
-    <None Include="scribusicon.ico" />
+    <None Include="pubwell.ico" />
   </ItemGroup>
   <ItemGroup>
     <uic Include="..\..\..\scribus\ui\aboutplugins.ui" />
