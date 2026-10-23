@@ -121,6 +121,38 @@ void ScToolBar::initVisibility()
 	connectPrefsSlot(true);
 }
 
+void ScToolBar::setHiddenActions(const QList<QAction*>& hidden)
+{
+	if (m_allActions.isEmpty())
+		m_allActions = actions();
+	for (int i = 0; i < m_allActions.count(); ++i)
+	{
+		QAction* action = m_allActions.at(i);
+		const bool present = actions().contains(action);
+		if (hidden.contains(action))
+		{
+			if (present)
+				removeAction(action);
+			continue;
+		}
+		if (present)
+			continue;
+		QAction* before = nullptr;
+		for (int j = i + 1; j < m_allActions.count() && !before; ++j)
+		{
+			if (actions().contains(m_allActions.at(j)))
+				before = m_allActions.at(j);
+		}
+		insertAction(before, action);
+		// A fresh button: tools with a menu open it on a long press, as when first added
+		if (action->menu())
+		{
+			if (auto* button = qobject_cast<QToolButton*>(widgetForAction(action)))
+				button->setPopupMode(QToolButton::DelayedPopup);
+		}
+	}
+}
+
 void ScToolBar::connectPrefsSlot(bool b)
 {
 	if (b)

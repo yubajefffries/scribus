@@ -34,6 +34,8 @@ public slots:
 	void setView(ScribusView *view);
 	void deleteMasterPage(const QString& tmp);
 	void enablePalette(const bool);
+	//! PubWell simple workspace: just the page thumbnails and page buttons
+	void setSimpleMode(bool simple);
 	void handlePageLayout(int layout);
 	void handleFirstPage(int fp);
 	void handleBindingDirection(int direction);

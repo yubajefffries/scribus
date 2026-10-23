@@ -187,6 +187,7 @@ void FirstStartWizard::saveGuiToPrefs(ApplicationPrefs* prefsData) const
 			p.uiPrefs.stylePalette = QString::fromUtf8("auto");
 			break;
 	}
+	p.uiPrefs.simpleWorkspace = m_appearance->minimalWorkspace();
 
 	// --- New document defaults (FSW_NewDocument) ---
 	p.docSetupPrefs.pageSize = m_newDocument->pageSizeName();

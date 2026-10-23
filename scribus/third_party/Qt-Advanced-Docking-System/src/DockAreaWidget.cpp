@@ -345,6 +345,12 @@ struct DockAreaWidgetPrivate
 		for (int i = 0; i < ContentsLayout->count(); ++i)
 		{
 			auto Widget = ContentsLayout->widget(i);
+			// A closed dock widget takes no room, so it must not hold the area wide
+			auto DockWidget = qobject_cast<CDockWidget*>(Widget);
+			if (DockWidget && DockWidget->isClosed())
+			{
+				continue;
+			}
 			MinSizeHint.setHeight(qMax(MinSizeHint.height(), Widget->minimumSizeHint().height()));
 			MinSizeHint.setWidth(qMax(MinSizeHint.width(), Widget->minimumSizeHint().width()));
 		}
@@ -1499,6 +1505,8 @@ bool CDockAreaWidget::containsCentralWidget() const
 //============================================================================
 QSize CDockAreaWidget::minimumSizeHint() const
 {
+	// Recompute: dock widgets change their minimum size and get closed after being added
+	d->updateMinimumSizeHint();
 	if (!d->MinSizeHint.isValid())
 	{
 		return Super::minimumSizeHint();

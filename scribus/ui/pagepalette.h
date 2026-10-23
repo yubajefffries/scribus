@@ -47,6 +47,8 @@ public:
 	PagePalette_Pages* pageWidget() const;
 
 	void setMainWindow(ScribusMainWindow * scMW);
+	//! PubWell simple workspace: a narrow panel of page thumbnails
+	void setSimpleMode(bool simple);
 
 protected:
 	ScribusView       *m_view;

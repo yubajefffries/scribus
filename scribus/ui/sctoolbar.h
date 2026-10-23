@@ -56,6 +56,8 @@ public:
 // 	void storeDockPosition();
 // 	void moveDock();
 	void initVisibility();
+	//! Take these actions off the toolbar (others go back in their original place)
+	void setHiddenActions(const QList<QAction*>& hidden);
 
 public slots:
 	void languageChange();
@@ -76,6 +78,7 @@ private:
 	Qt::Orientation floatOrientation {Qt::Horizontal};
 	QToolButton *prefsButton {nullptr};
 	QMainWindow* parentMW {nullptr};
+	QList<QAction*> m_allActions;
 	bool dockTop {false};
 	bool dockRight {false};
 	bool dockBottom {false};

@@ -299,6 +299,13 @@ void PagePalette_Pages::deletePage()
 	pageView_deletePage(selectedPage);
 }
 
+void PagePalette_Pages::setSimpleMode(bool simple)
+{
+	// Master pages and the page layout chooser stay a click away in the Page menu
+	widget->setVisible(!simple);
+	pageLayout->setVisible(!simple);
+}
+
 void PagePalette_Pages::enablePalette(const bool enabled)
 {
 	pageViewWidget->setEnabled(enabled);

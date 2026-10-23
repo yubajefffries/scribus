@@ -14,11 +14,8 @@ FSW_Appearance::FSW_Appearance(QWidget* parent)
 	: QWizardPage(parent)
 {
 	setupUi(this);
-	// The workspace preset has nowhere to be stored yet, so the controls stay in the
-	// .ui but out of sight until a preference for them exists.
-	workspaceGroup->setVisible(false);
 	themeAutoRadio->setChecked(true);
-	workspaceFullRadio->setChecked(true);
+	workspaceMinimalRadio->setChecked(true);
 	wireRadios();
 }
 
@@ -41,6 +38,11 @@ void FSW_Appearance::restoreDefaults(const ApplicationPrefs* prefsData)
 		themeDarkRadio->setChecked(true);
 	else
 		themeAutoRadio->setChecked(true);
+
+	if (prefsData->uiPrefs.simpleWorkspace)
+		workspaceMinimalRadio->setChecked(true);
+	else
+		workspaceFullRadio->setChecked(true);
 }
 
 int FSW_Appearance::themeMode() const
@@ -54,7 +56,7 @@ int FSW_Appearance::themeMode() const
 
 bool FSW_Appearance::minimalWorkspace() const
 {
-	// TODO: "minimal" needs a defined preset (which toolbars/docks to hide).
+	// Stored as uiPrefs.simpleWorkspace (see ScribusMainWindow::setSimpleWorkspace)
 	return workspaceMinimalRadio->isChecked();
 }
 

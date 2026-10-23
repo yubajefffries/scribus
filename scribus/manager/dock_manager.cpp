@@ -26,7 +26,9 @@ to the COPYING file provided with the program.
 #include "dock_manager.h"
 
 #include <QMenu>
+#include <QTimer>
 #include "third_party/Qt-Advanced-Docking-System/src/DockAreaWidget.h"
+#include "third_party/Qt-Advanced-Docking-System/src/DockSplitter.h"
 #include "ui/docks/dock_centralwidget.h"
 
 #include "iconmanager.h"
@@ -201,6 +203,76 @@ void DockManager::restoreHiddenWorkspace()
 {
 	if (m_dockTemporaryHidden)
 		toggleDocksVisibility();
+}
+
+void DockManager::applySimpleWorkspace()
+{
+	restoreHiddenWorkspace();
+	const QList<CDockWidget *> keep { pagePalette, propertiesPalette, contentPalette };
+	foreach (CDockWidget *dock, this->dockWidgets())
+	{
+		if (dock->isCentralWidget())
+			continue;
+		if (keep.contains(dock))
+		{
+			if (dock->isClosed())
+				dock->toggleView(true);
+		}
+		else if (!dock->isClosed())
+			dock->closeDockWidget();
+	}
+	if (propertiesPalette->dockAreaWidget())
+		propertiesPalette->dockAreaWidget()->setCurrentDockWidget(propertiesPalette);
+
+	// Size once the window has its real width (at startup it is not shown yet)
+	QTimer::singleShot(0, this, &DockManager::sizeSimpleWorkspace);
+}
+
+void DockManager::sizeSimpleWorkspace()
+{
+	// Size the side panels in the row that holds the page; the page gets the rest and
+	// all of any later growth (maximizing the window).
+	QWidget *row = dockCenter->dockAreaWidget();
+	CDockSplitter *splitter = dockCenter->dockAreaWidget()->parentSplitter();
+	while (splitter && splitter->orientation() != Qt::Horizontal)
+	{
+		row = splitter;
+		splitter = qobject_cast<CDockSplitter *>(splitter->parentWidget());
+	}
+	if (!splitter)
+		return;
+	const int pagesWidth = qMax(150, pagePalette->minimumWidth());
+	const int propertiesWidth = 300;
+	int total = 0;
+	foreach (int size, splitter->sizes())
+		total += size;
+	QList<int> sizes;
+	int used = 0;
+	int centerIndex = -1;
+	for (int i = 0; i < splitter->count(); ++i)
+	{
+		QWidget *w = splitter->widget(i);
+		int size = 0;
+		if (w == row)
+			centerIndex = i;
+		else if (!w->isHidden() && w->isAncestorOf(pagePalette))
+			size = pagesWidth;
+		else if (!w->isHidden() && w->isAncestorOf(propertiesPalette))
+			size = propertiesWidth;
+		sizes << size;
+		used += size;
+		splitter->setStretchFactor(i, (w == row) ? 1 : 0);
+	}
+	if (centerIndex >= 0)
+		sizes[centerIndex] = qMax(200, total - used);
+	splitter->setSizes(sizes);
+}
+
+void DockManager::applyFullWorkspace()
+{
+	restoreHiddenWorkspace();
+	if (perspectiveNames().contains("Default"))
+		openPerspective("Default");
 }
 
 void DockManager::updateIcons(QList<CDockWidget *> dockWidgets)

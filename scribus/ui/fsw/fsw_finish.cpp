@@ -70,7 +70,7 @@ void FSW_Finish::initializePage()
 				break;
 		}
 		addRow(tr("Theme"), theme);
-		addRow(tr("Workspace"), appr->minimalWorkspace() ? tr("Minimal") : tr("Everything visible"));
+		addRow(tr("Workspace"), appr->minimalWorkspace() ? tr("Simple") : tr("Everything"));
 	}
 	if (nd)
 	{

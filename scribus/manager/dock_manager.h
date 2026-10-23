@@ -112,6 +112,16 @@ public slots:
 	 */
 	void restoreHiddenWorkspace();
 
+	/**
+	 * @brief PubWell simple workspace: only the Pages panel on the left and Properties
+	 * (with Content Properties) on the right, the page taking the rest.
+	 */
+	void applySimpleWorkspace();
+	/**
+	 * @brief Back to the default (full) Scribus panel layout.
+	 */
+	void applyFullWorkspace();
+
 protected:
 	DockCentralWidget *dockCenter {nullptr};
 	bool m_dockTemporaryHidden {false};
@@ -130,6 +140,9 @@ protected:
 	 * @brief Creates a default workspace as perspective.
 	 */
 	void createDefaultWorkspace();
+
+	//! Panel widths for the simple workspace; the page area takes the rest
+	void sizeSimpleWorkspace();
 
 };
 

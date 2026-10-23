@@ -19,8 +19,8 @@
     <widget class="QGroupBox" name="workspaceGroup">
      <property name="title"><string>Workspace</string></property>
      <layout class="QVBoxLayout" name="workspaceCol">
-      <item><widget class="QRadioButton" name="workspaceFullRadio"><property name="text"><string>Everything visible — all toolbars and docked panels</string></property></widget></item>
-      <item><widget class="QRadioButton" name="workspaceMinimalRadio"><property name="text"><string>Minimal — clean canvas, panels on demand</string></property></widget></item>
+      <item><widget class="QRadioButton" name="workspaceFullRadio"><property name="text"><string>Everything — all toolbars and panels</string></property></widget></item>
+      <item><widget class="QRadioButton" name="workspaceMinimalRadio"><property name="text"><string>Simple — everyday tools, Pages and Properties panels (like Publisher)</string></property></widget></item>
      </layout>
     </widget>
    </item>

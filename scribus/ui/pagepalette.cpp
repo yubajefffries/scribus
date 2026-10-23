@@ -62,6 +62,16 @@ PagePalette_Pages* PagePalette::pageWidget() const
 	return nullptr;
 }
 
+void PagePalette::setSimpleMode(bool simple)
+{
+	if (!m_pageWidget)
+		return;
+	m_pageWidget->setSimpleMode(simple);
+	// The dock keeps the minimum width it had with everything showing. Thumbnails need
+	// little room, so in simple mode let the panel go narrow (the button row may clip).
+	setMinimumWidth(simple ? 150 : m_pageWidget->minimumSizeHint().width());
+}
+
 void PagePalette::setMainWindow(ScribusMainWindow *scMW)
 {
 	m_scMW = scMW;

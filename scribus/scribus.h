@@ -314,6 +314,8 @@ public slots:
 	void ToggleStickyTools();
 	void ToggleAllGuides();
 	void ToggleAllPalettes();
+	/** PubWell: simple workspace (everyday tools, Pages and Properties panels) or the full Scribus one */
+	void setSimpleWorkspace(bool simple, bool layoutPanels);
 	void slotStoryEditor(bool fromTable);
 	void slotCharSelect();
 	void ImageEffects();

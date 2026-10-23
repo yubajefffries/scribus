@@ -67,6 +67,7 @@ for which a new license (GPL+exception) is in place.
 #include <QTranslator>
 #include <QWindow>
 #include <QWheelEvent>
+#include <QTimer>
 
 
 #ifdef DEBUG_LOAD_TIMES
@@ -626,6 +627,7 @@ void ScribusMainWindow::initToolBars()
 	connect(scrActions["toolsToolbarTools"], SIGNAL(toggled(bool)), modeToolBar, SLOT(setVisible(bool)) );
 	connect(viewToolBar, SIGNAL(visibilityChanged(bool)), scrActions["toolsToolbarView"], SLOT(setChecked(bool)));
 	connect(scrActions["toolsToolbarView"], SIGNAL(toggled(bool)), viewToolBar, SLOT(setVisible(bool)) );
+	connect(scrActions["windowsSimpleWorkspace"], &ScrAction::triggered, this, [this](bool on) { setSimpleWorkspace(on, true); });
 }
 
 void ScribusMainWindow::setStyleSheet()
@@ -1432,6 +1434,7 @@ void ScribusMainWindow::addDefaultWindowMenuItems()
 	scrMenuMgr->clearMenu("Windows");
 	scrMenuMgr->addMenuItemString("windowsCascade", "Windows");
 	scrMenuMgr->addMenuItemString("windowsTile", "Windows");
+	scrMenuMgr->addMenuItemString("windowsSimpleWorkspace", "Windows");
 	scrMenuMgr->addMenuItemString("specialToggleAllPalettes", "Windows");
 	scrMenuMgr->addMenuItemString("SEPARATOR", "Windows");
 	scrMenuMgr->addMenuItemString("toolsProperties", "Windows");
@@ -2285,6 +2288,8 @@ bool ScribusMainWindow::newStartDocument(int kind)
 
 	doc->changed();
 	view->DrawNew();
+	// Whole page in view, like Publisher
+	scrActions["viewFitInWindow"]->trigger();
 	// Don't ask "save?" for a document nobody has touched yet
 	doc->setModified(false);
 	updateActiveWindowCaption(doc->documentFileName());
@@ -5776,6 +5781,42 @@ void ScribusMainWindow::ToggleStickyTools()
 		view->requestMode(modeNormal);
 }
 
+void ScribusMainWindow::setSimpleWorkspace(bool simple, bool layoutPanels)
+{
+	m_prefsManager.appPrefs.uiPrefs.simpleWorkspace = simple;
+	scrActions["windowsSimpleWorkspace"]->setChecked(simple);
+
+	// Everyday tools stay; the specialist ones are still in the Insert and Item menus.
+	QList<QAction*> hiddenTools;
+	QList<QAction*> hiddenFileTools;
+	if (simple)
+	{
+		const QStringList specialistTools {
+			"toolsInsertRenderFrame", "toolsInsertPolygon", "toolsInsertArc", "toolsInsertSpiral",
+			"toolsInsertBezier", "toolsInsertFreehandLine", "toolsInsertCalligraphicLine", "toolsRotate",
+			"toolsEditWithStoryEditor", "toolsMeasurements", "toolsCopyProperties", "toolsEyeDropper"
+		};
+		for (const QString& name : specialistTools)
+			hiddenTools << scrActions[name].data();
+		hiddenFileTools << scrActions["toolsPreflightVerifier"].data();
+	}
+	modeToolBar->setHiddenActions(hiddenTools);
+	fileToolBar->setHiddenActions(hiddenFileTools);
+	pdfToolBar->setVisible(!simple);
+	viewToolBar->setVisible(!simple);
+	pagePalette->setSimpleMode(simple);
+
+	if (!layoutPanels)
+		return;
+	if (simple)
+		dockManager->applySimpleWorkspace();
+	else
+		dockManager->applyFullWorkspace();
+	// The page area changed width; refit the canvas (same zoom) once the panels settle
+	if (HaveDoc && view)
+		QTimer::singleShot(100, this, [this] { if (HaveDoc && view) view->zoom(); });
+}
+
 void ScribusMainWindow::ToggleAllPalettes()
 {	
 	dockManager->toggleDocksVisibility();
@@ -7045,6 +7086,7 @@ int ScribusMainWindow::ShowSubs()
 	symbolPalette->startup();
 
 	// try to load custom layout from preferences
+	const bool freshLayout = m_prefsManager.appPrefs.uiPrefs.adsDockState.isEmpty();
 	dockManager->restoreWorkspaceFromPrefs();
 
 	// init the toolbars
@@ -7052,6 +7094,10 @@ int ScribusMainWindow::ShowSubs()
 	editToolBar->initVisibility();
 	modeToolBar->initVisibility();
 	pdfToolBar->initVisibility();
+
+	// PubWell: the simple workspace trims the tools every time; it lays out the panels
+	// only on a fresh profile, so panels the user opened later stay where they are.
+	setSimpleWorkspace(m_prefsManager.appPrefs.uiPrefs.simpleWorkspace, freshLayout);
 
 	activateWindow();
 	if (!scriptIsRunning())

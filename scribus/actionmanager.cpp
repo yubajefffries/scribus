@@ -884,6 +884,8 @@ void ActionManager::initToolsMenuActions()
 	scrActions->insert(name, new ScrAction("", defaultKey(name), mainWindow));
 	name = "toolsToolbarView";
 	scrActions->insert(name, new ScrAction("", defaultKey(name), mainWindow));
+	name = "windowsSimpleWorkspace";
+	scrActions->insert(name, new ScrAction("", defaultKey(name), mainWindow));
 
 	//toolbar only items
 	name = "toolsSelect";
@@ -978,6 +980,7 @@ void ActionManager::initToolsMenuActions()
 	(*scrActions)["toolsToolbarTools"]->setToggleAction(true);
 	(*scrActions)["toolsToolbarPDF"]->setToggleAction(true);
 	(*scrActions)["toolsToolbarView"]->setToggleAction(true);
+	(*scrActions)["windowsSimpleWorkspace"]->setToggleAction(true);
 
 	(*scrActions)["toolsDocumentLog"]->setChecked(false);
 
@@ -1801,6 +1804,7 @@ void ActionManager::languageChange()
 	(*scrActions)["toolsToolbarTools"]->setTexts( tr("&Tools"));
 	(*scrActions)["toolsToolbarPDF"]->setTexts( tr("P&DF Tools"));
 	(*scrActions)["toolsToolbarView"]->setTexts( tr("&View Tools"));
+	(*scrActions)["windowsSimpleWorkspace"]->setTexts( tr("&Simple Workspace"));
 
 	//toolbar only items
 	(*scrActions)["toolsSelect"]->setTexts( tr("Select Item"));
@@ -2506,7 +2510,8 @@ void ActionManager::createDefaultMenus()
 		<< "toolsInline"
 		<< "toolsToolbarTools"
 		<< "toolsToolbarPDF"
-		<< "toolsToolbarView";
+		<< "toolsToolbarView"
+		<< "windowsSimpleWorkspace";
 	//Help
 	++itmenu;
 	itmenu->second
