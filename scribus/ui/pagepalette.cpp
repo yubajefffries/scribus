@@ -246,7 +246,7 @@ void PagePalette::endMasterPageMode()
 		pageWidget->setView(m_view);
 		pageWidget->rebuild();
 	}
-	setWindowTitle( tr( "Arrange Pages" ) );
+	setWindowTitle( tr( "Pages" ) );
 }
 
 void PagePalette::changeEvent(QEvent *e)
@@ -265,5 +265,5 @@ void PagePalette::languageChange()
 	if (masterPageMode())
 		setWindowTitle( tr( "Manage Masterpages" ) );
 	else
-		setWindowTitle( tr( "Arrange Pages" ) );
+		setWindowTitle( tr( "Pages" ) );
 }

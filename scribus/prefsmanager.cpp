@@ -209,7 +209,8 @@ void PrefsManager::initDefaults()
 	appPrefs.uiPrefs.mainWinSettings.height = s->availableGeometry().height() * (4.0 / 5.0);
 	appPrefs.uiPrefs.mainWinSettings.xPosition = (s->availableGeometry().width() - appPrefs.uiPrefs.mainWinSettings.width) / 2;
 	appPrefs.uiPrefs.mainWinSettings.yPosition = (s->availableGeometry().height() - appPrefs.uiPrefs.mainWinSettings.height) / 2;
-	appPrefs.uiPrefs.mainWinSettings.maximized = false;
+	// PubWell: fill the screen on first run, like Publisher
+	appPrefs.uiPrefs.mainWinSettings.maximized = true;
 	appPrefs.uiPrefs.mainWinState = QByteArray();
 	appPrefs.uiPrefs.RecentDocs.clear();
 	appPrefs.uiPrefs.recentDocCount = 5;

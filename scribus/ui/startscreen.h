@@ -12,6 +12,7 @@ for which a new license (GPL+exception) is in place.
 #include <QStringList>
 
 #include "scribusapi.h"
+#include "ui/labelpicker.h"
 
 class QCheckBox;
 class QListWidget;
@@ -37,6 +38,7 @@ public:
 		OpenPublisher,
 		OpenOther,
 		OpenRecent,
+		ConvertPublisherFolder,
 		MoreOptions
 	};
 
@@ -45,12 +47,17 @@ public:
 	Choice choice() const { return m_choice; }
 	QString recentFile() const { return m_recentFile; }
 	bool showAtStartup() const;
+	//! The label sheet picked for LabelSheet, and the text for every label (may be empty)
+	const LabelSpec& labelSpec() const { return m_labelSpec; }
+	QString labelText() const { return m_labelText; }
 
 	static QPixmap preview(Choice kind, int size);
 
 private:
 	Choice m_choice { None };
 	QString m_recentFile;
+	LabelSpec m_labelSpec;
+	QString m_labelText;
 	QCheckBox* m_showAtStartup { nullptr };
 	QListWidget* m_recentList { nullptr };
 

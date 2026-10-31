@@ -123,6 +123,10 @@ void ActionManager::initFileMenuActions()
 	scrActions->insert(name, new ScrAction("", defaultKey(name), mainWindow));
 	name = "fileOpen";
 	scrActions->insert(name, new ScrAction("document-open", "document-open", "", defaultKey(name), mainWindow));
+	name = "fileOpenPublisher";
+	scrActions->insert(name, new ScrAction("", defaultKey(name), mainWindow));
+	name = "fileConvertPublisherFolder";
+	scrActions->insert(name, new ScrAction("", defaultKey(name), mainWindow));
 	name = "fileClose";
 	scrActions->insert(name, new ScrAction("close", "close", "", defaultKey(name), mainWindow));
 	name = "fileSave";
@@ -1571,6 +1575,8 @@ void ActionManager::languageChange()
 	(*scrActions)["fileNew"]->setTexts( tr("&New..."));
 	(*scrActions)["fileNewFromTemplate"]->setTexts( tr("New &from Template..."));
 	(*scrActions)["fileOpen"]->setTexts( tr("&Open..."));
+	(*scrActions)["fileOpenPublisher"]->setTexts( tr("Open a &Publisher File..."));
+	(*scrActions)["fileConvertPublisherFolder"]->setTexts( tr("Con&vert a Folder of Publisher Files..."));
 	(*scrActions)["fileClose"]->setTexts( tr("&Close"));
 	(*scrActions)["fileSave"]->setTexts( tr("&Save"));
 	(*scrActions)["fileSaveAs"]->setTexts( tr("Save &As..."));
@@ -2176,6 +2182,8 @@ void ActionManager::createDefaultMenus()
 		<< "fileNew"
 		<< "fileNewFromTemplate"
 		<< "fileOpen"
+		<< "fileOpenPublisher"
+		<< "fileConvertPublisherFolder"
 		<< "fileClose"
 		<< "fileSave"
 		<< "fileSaveAs"

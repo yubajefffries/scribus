@@ -304,6 +304,12 @@ void PagePalette_Pages::setSimpleMode(bool simple)
 	// Master pages and the page layout chooser stay a click away in the Page menu
 	widget->setVisible(!simple);
 	pageLayout->setVisible(!simple);
+	// Room for the trash in a narrow panel; importing pages stays in the Page menu
+	buttonPageImport->setVisible(!simple);
+	const int gap = simple ? 2 : 16;
+	horizontalSpacer->changeSize(gap, 0, QSizePolicy::Fixed, QSizePolicy::Minimum);
+	horizontalSpacer_2->changeSize(gap, 0, QSizePolicy::Fixed, QSizePolicy::Minimum);
+	horizontalLayout_2->invalidate();
 }
 
 void PagePalette_Pages::enablePalette(const bool enabled)

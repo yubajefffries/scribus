@@ -68,6 +68,10 @@ for which a new license (GPL+exception) is in place.
 #include <QWindow>
 #include <QWheelEvent>
 #include <QTimer>
+#include <QDesktopServices>
+#include <QUrl>
+#include <QProgressDialog>
+#include <QSet>
 
 
 #ifdef DEBUG_LOAD_TIMES
@@ -223,6 +227,7 @@ for which a new license (GPL+exception) is in place.
 #include "ui/multipleduplicate.h"
 #include "ui/newdocdialog.h"
 #include "ui/startscreen.h"
+#include "ui/pubconvertdialog.h"
 #include "ui/nftdialog.h"
 #include "ui/nftwidget.h"
 #include "ui/nodeeditpalette.h"
@@ -628,6 +633,8 @@ void ScribusMainWindow::initToolBars()
 	connect(viewToolBar, SIGNAL(visibilityChanged(bool)), scrActions["toolsToolbarView"], SLOT(setChecked(bool)));
 	connect(scrActions["toolsToolbarView"], SIGNAL(toggled(bool)), viewToolBar, SLOT(setVisible(bool)) );
 	connect(scrActions["windowsSimpleWorkspace"], &ScrAction::triggered, this, [this](bool on) { setSimpleWorkspace(on, true); });
+	connect(scrActions["fileOpenPublisher"], &ScrAction::triggered, this, [this] { openPublisherFile(); });
+	connect(scrActions["fileConvertPublisherFolder"], &ScrAction::triggered, this, &ScribusMainWindow::slotConvertPublisherFolder);
 }
 
 void ScribusMainWindow::setStyleSheet()
@@ -967,6 +974,8 @@ void ScribusMainWindow::initMenuBar()
 	scrMenuMgr->addMenuItemString("fileOpen", "File");
 	scrMenuMgr->addMenuItemString("FileOpenRecent", "File");
 	scrMenuMgr->createMenu("FileOpenRecent", tr("Open &Recent"), "File", false, true);
+	scrMenuMgr->addMenuItemString("fileOpenPublisher", "File");
+	scrMenuMgr->addMenuItemString("fileConvertPublisherFolder", "File");
 	scrMenuMgr->addMenuItemString("SEPARATOR", "File");
 	scrMenuMgr->addMenuItemString("fileClose", "File");
 	scrMenuMgr->addMenuItemString("fileSave", "File");
@@ -2134,6 +2143,11 @@ bool ScribusMainWindow::runStartScreenChoice(const StartScreen& screen)
 		case StartScreen::OpenRecent:
 			loadRecent(screen.recentFile());
 			return HaveDoc;
+		case StartScreen::ConvertPublisherFolder:
+			slotConvertPublisherFolder();
+			return HaveDoc;
+		case StartScreen::LabelSheet:
+			return newStartDocument(StartScreen::LabelSheet, &screen.labelSpec(), screen.labelText());
 		case StartScreen::None:
 		case StartScreen::MoreOptions:
 			return false;
@@ -2152,12 +2166,131 @@ bool ScribusMainWindow::openPublisherFile()
 	if (fileNameVersion.first.isEmpty())
 		return false;
 	docContext->set("docsopen", QFileInfo(fileNameVersion.first).absolutePath());
-	return loadDoc(fileNameVersion.first);
+	if (!loadDoc(fileNameVersion.first))
+		return false;
+	fitPageSoon();
+	return true;
+}
+
+void ScribusMainWindow::fitPageSoon()
+{
+	scrActions["viewFitInWindow"]->trigger();
+	// Again once the window and panels have their final size (first start, maximizing)
+	QTimer::singleShot(250, this, [this] {
+		if (HaveDoc && view)
+			scrActions["viewFitInWindow"]->trigger();
+	});
+}
+
+bool ScribusMainWindow::exportPdfQuietly(const QString& fileName, QString& error)
+{
+	PDFOptions& options = doc->pdfOptions();
+	options.fileName = fileName;
+	options.FontEmbedding = PDFOptions::EmbedFonts;
+	options.EmbedList = doc->usedFonts().keys();
+	options.SubsetList.clear();
+	options.OutlineList.clear();
+	std::vector<int> pages;
+	parsePagesString("*", &pages, doc->DocPages.count());
+	return getPDFDriver(fileName, pages, QMap<int, QImage>(), error);
+}
+
+void ScribusMainWindow::slotConvertPublisherFolder()
+{
+	PubConvertDialog dia(this);
+	if (!dia.exec())
+		return;
+	const QStringList files = dia.files();
+	const QString target = dia.targetFolder();
+	if (!target.isEmpty() && !QDir().mkpath(target))
+	{
+		ScMessageBox::warning(this, CommonStrings::trWarning, tr("Could not create the folder:\n%1").arg(QDir::toNativeSeparators(target)));
+		return;
+	}
+
+	// One question-free run: missing fonts are substituted quietly, and the
+	// converted files don't push your own documents out of Open Recent
+	const bool askFonts = m_prefsManager.appPrefs.fontPrefs.askBeforeSubstitute;
+	m_prefsManager.appPrefs.fontPrefs.askBeforeSubstitute = false;
+	const QStringList recent = m_recentDocsList;
+
+	QProgressDialog progress(tr("Getting ready..."), CommonStrings::tr_Cancel, 0, files.count(), this);
+	progress.setWindowTitle(tr("Convert Publisher Files"));
+	progress.setWindowModality(Qt::WindowModal);
+	progress.setMinimumDuration(0);
+	progress.setMinimumWidth(420);
+
+	int converted = 0;
+	int skipped = 0;
+	QStringList failed;
+	QSet<QString> madeThisRun;
+	for (int i = 0; i < files.count() && !progress.wasCanceled(); ++i)
+	{
+		const QFileInfo source(files.at(i));
+		progress.setValue(i);
+		progress.setLabelText(tr("Converting %1\n(%2 of %3)").arg(source.fileName()).arg(i + 1).arg(files.count()));
+		QApplication::processEvents();
+
+		const QDir dir(target.isEmpty() ? source.absolutePath() : target);
+		QString base = dir.filePath(source.completeBaseName());
+		// Same name from two folders into one: number the second, but never overwrite older work
+		for (int n = 2; madeThisRun.contains(base + ".sla"); ++n)
+			base = dir.filePath(QString("%1 (%2)").arg(source.completeBaseName()).arg(n));
+		const QString copy = base + ".sla";
+		if (QFileInfo::exists(copy))
+		{
+			++skipped;
+			continue;
+		}
+		if (!loadDoc(source.absoluteFilePath()))
+		{
+			failed.append(QDir::toNativeSeparators(source.absoluteFilePath()));
+			continue;
+		}
+		bool ok = DoFileSave(copy);
+		if (ok)
+			madeThisRun.insert(copy);
+		QString pdfError;
+		if (ok && dia.makePdf() && !QFileInfo::exists(base + ".pdf"))
+			ok = exportPdfQuietly(base + ".pdf", pdfError);
+		doc->setModified(false);
+		slotFileClose();
+		QApplication::processEvents();
+		if (ok)
+			++converted;
+		else
+			failed.append(QDir::toNativeSeparators(source.absoluteFilePath()) + (pdfError.isEmpty() ? QString() : " (" + pdfError + ")"));
+	}
+	const bool cancelled = progress.wasCanceled();
+	progress.setValue(files.count());
+
+	m_prefsManager.appPrefs.fontPrefs.askBeforeSubstitute = askFonts;
+	m_recentDocsList = recent;
+	rebuildRecentFileMenu();
+
+	QString summary = (converted == 1) ? tr("1 file converted.") : tr("%1 files converted.").arg(converted);
+	if (skipped > 0)
+		summary += " " + ((skipped == 1) ? tr("1 already had a copy and was left alone.") : tr("%1 already had copies and were left alone.").arg(skipped));
+	if (!failed.isEmpty())
+		summary += " " + ((failed.count() == 1) ? tr("1 could not be converted.") : tr("%1 could not be converted.").arg(failed.count()));
+	if (cancelled)
+		summary += " " + tr("You stopped it before the end.");
+	const QString folder = target.isEmpty() ? dia.sourceFolder() : target;
+	QMessageBox box(failed.isEmpty() ? QMessageBox::Information : QMessageBox::Warning, tr("Convert Publisher Files"), summary, QMessageBox::Close, this);
+	box.setInformativeText(target.isEmpty() ? tr("The copies are next to the original files.")
+		: tr("The copies are in %1").arg(QDir::toNativeSeparators(target)));
+	if (!failed.isEmpty())
+		box.setDetailedText(tr("These files could not be converted:") + "\n" + failed.join("\n"));
+	QPushButton* openFolder = box.addButton(tr("Open Folder"), QMessageBox::ActionRole);
+	box.exec();
+	if (box.clickedButton() == openFolder)
+		QDesktopServices::openUrl(QUrl::fromLocalFile(folder));
+	m_mainWindowStatusLabel->setText(summary);
 }
 
 // Ready-made starting points for the start screen. Sizes in points (72 per inch);
 // the documents measure in inches, like Publisher.
-bool ScribusMainWindow::newStartDocument(int kind)
+bool ScribusMainWindow::newStartDocument(int kind, const LabelSpec* labels, const QString& labelText)
 {
 	const double in = 72.0;
 	double width = 8.5 * in;
@@ -2182,9 +2315,12 @@ bool ScribusMainWindow::newStartDocument(int kind)
 			pageCount = 2;
 			break;
 		case StartScreen::LabelSheet:
-			// Avery 5160 / 8160: 3 x 10 labels of 2.625 x 1 in
-			topMargin = 0.5 * in;
-			sideMargin = 0.1875 * in;
+			if (!labels)
+				return false;
+			width = labels->pageWidth * in;
+			height = labels->pageHeight * in;
+			topMargin = labels->topMargin * in;
+			sideMargin = labels->sideMargin * in;
 			break;
 		case StartScreen::Newsletter:
 			topMargin = sideMargin = 0.75 * in;
@@ -2264,12 +2400,23 @@ bool ScribusMainWindow::newStartDocument(int kind)
 			break;
 		}
 		case StartScreen::LabelSheet:
-			title = tr("Address Labels");
-			for (int row = 0; row < 10; ++row)
-				for (int col = 0; col < 3; ++col)
-					addText(first, sideMargin + col * 2.75 * in, topMargin + row * in, 2.625 * in, 1.0 * in, QString(), 11, ParagraphStyle::LeftAligned)
-						->setTextToFrameDist(9, 9, 6, 6);
+		{
+			title = tr("Labels");
+			// Text sized to the label: about 11pt on a 1 in address label, smaller on return labels
+			const double labelW = labels->labelWidth * in;
+			const double labelH = labels->labelHeight * in;
+			const double fontSize = qBound(6.0, qRound(labelH / 6.5 * 2) / 2.0, 12.0);
+			const double inset = qBound(3.0, labelH * 0.1, 9.0);
+			for (int row = 0; row < labels->rows; ++row)
+				for (int col = 0; col < labels->columns; ++col)
+				{
+					PageItem* label = addText(first, sideMargin + col * (labelW + labels->gapAcross * in), topMargin + row * (labelH + labels->gapDown * in),
+						labelW, labelH, labelText, fontSize, ParagraphStyle::LeftAligned);
+					label->setTextToFrameDist(inset * 1.5, inset * 1.5, inset, inset);
+					label->setItemName(tr("Label %1").arg(row * labels->columns + col + 1));
+				}
 			break;
+		}
 		case StartScreen::Newsletter:
 		{
 			title = tr("Newsletter");
@@ -2289,7 +2436,7 @@ bool ScribusMainWindow::newStartDocument(int kind)
 	doc->changed();
 	view->DrawNew();
 	// Whole page in view, like Publisher
-	scrActions["viewFitInWindow"]->trigger();
+	fitPageSoon();
 	// Don't ask "save?" for a document nobody has touched yet
 	doc->setModified(false);
 	updateActiveWindowCaption(doc->documentFileName());

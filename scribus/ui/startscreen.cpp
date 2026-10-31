@@ -62,7 +62,7 @@ StartScreen::StartScreen(QWidget* parent, const QStringList& recentDocs, bool st
 	const QList<Tile> tiles {
 		{ Flyer, tr("Flyer"), tr("8.5 x 11 in") },
 		{ BusinessCard, tr("Business Card"), tr("3.5 x 2 in") },
-		{ LabelSheet, tr("Address Labels"), tr("30 per sheet (Avery 5160)") },
+		{ LabelSheet, tr("Labels"), tr("Avery and other sheets") },
 		{ Newsletter, tr("Newsletter"), tr("8.5 x 11 in, 2 columns") },
 		{ Postcard, tr("Postcard"), tr("6 x 4 in") },
 		{ BlankPage, tr("Blank Page"), tr("8.5 x 11 in") }
@@ -97,6 +97,11 @@ StartScreen::StartScreen(QWidget* parent, const QStringList& recentDocs, bool st
 	openOther->setMinimumHeight(30);
 	connect(openOther, &QPushButton::clicked, this, [this] { choose(OpenOther); });
 	side->addWidget(openOther);
+	auto* convert = new QPushButton(tr("Convert a Folder of Publisher Files..."), this);
+	convert->setToolTip(tr("Make %1 copies of every Publisher file in a folder, with PDFs if you like. The originals are not changed.").arg(Branding::productName()));
+	convert->setMinimumHeight(30);
+	connect(convert, &QPushButton::clicked, this, [this] { choose(ConvertPublisherFolder); });
+	side->addWidget(convert);
 
 	auto* recentLabel = new QLabel(tr("Recent"), this);
 	QFont recentFont(recentLabel->font());
@@ -151,6 +156,15 @@ bool StartScreen::showAtStartup() const
 
 void StartScreen::choose(Choice c)
 {
+	if (c == LabelSheet)
+	{
+		// Which sheet? Cancel comes back here rather than closing everything
+		LabelPicker picker(this);
+		if (!picker.exec())
+			return;
+		m_labelSpec = picker.spec();
+		m_labelText = picker.repeatedText();
+	}
 	m_choice = c;
 	accept();
 }

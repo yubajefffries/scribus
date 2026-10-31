@@ -110,6 +110,7 @@ class ScribusQApp;
 class ScribusWin;
 class SimpleState;
 class StartScreen;
+struct LabelSpec;
 class StoryEditor;
 class StyleManager;
 class SymbolPalette;
@@ -392,6 +393,8 @@ public slots:
 	/** \brief save a document under a different filename*/
 	bool slotFileSaveAs();
 	void slotFileRevert();
+	//! PubWell: open every .pub in a folder and save editable copies (and PDFs)
+	void slotConvertPublisherFolder();
 	/** \brief Sichert den Text eines Elements */
 	void SaveText();
 	/** \brief close the actual file */
@@ -653,8 +656,12 @@ private:
 	void startUpDialogClassic();
 	bool slotFileNewClassic();
 	bool runStartScreenChoice(const StartScreen& screen);
-	bool newStartDocument(int kind);
+	bool newStartDocument(int kind, const LabelSpec* labels = nullptr, const QString& labelText = QString());
 	bool openPublisherFile();
+	//! Zoom so the whole page shows, now and again after the layout settles
+	void fitPageSoon();
+	//! Save a PDF of the open document with everyday settings, no dialog
+	bool exportPdfQuietly(const QString& fileName, QString& error);
 
 	int m_ScriptRunning {0};
 
